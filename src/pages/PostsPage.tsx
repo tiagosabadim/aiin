@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 
@@ -7,15 +7,8 @@ type Status = 'all' | 'pending_approval' | 'approved' | 'scheduled' | 'published
 interface Post {
   id: string; caption: string; image_url?: string; status: string
   format: string; scheduled_at?: string; ai_score?: number
+  briefing_id: string; brand_id: string
 }
-
-const MOCK_POSTS: Post[] = [
-  { id:'1', caption:'Chegou a nova coleção de verão! Peças incríveis para você arrasar nas férias. Qualidade e estilo que você merece. ✨ #moda #verão', format:'Feed 1080×1350', status:'pending_approval', ai_score:8.7 },
-  { id:'2', caption:'Você sabia que nossa coleção é feita com tecido sustentável? Moda que faz bem pra você e pro planeta 🌿 #modaconsciente', format:'Carrossel 6 slides', status:'pending_approval', ai_score:9.1 },
-  { id:'3', caption:'Promoção relâmpago! Até 40% off na coleção selecionada. Só hoje e amanhã. Corre pro link na bio! 🔥 #promoção', format:'Stories', status:'pending_approval', ai_score:7.4 },
-  { id:'4', caption:'Looks para o final de semana! Combine peças e crie um visual único. Qual é o seu estilo favorito? 💬', format:'Feed 1080×1350', status:'approved', scheduled_at: new Date(Date.now() + 86400000 * 2).toISOString(), ai_score:9.3 },
-  { id:'5', caption:'Bastidores da nossa coleção — é aqui que a magia acontece 🧵', format:'Reels', status:'published', ai_score:8.5 },
-]
 
 const STATUS_LABEL: Record<string, string> = {
   pending_approval:'Pendente', approved:'Aprovado', rejected:'Recusado',
@@ -31,7 +24,8 @@ const STATUS_STYLE: Record<string, { bg: string; color: string }> = {
 
 export function PostsPage() {
   const { user } = useAuth()
-  const [posts, setPosts]         = useState<Post[]>(MOCK_POSTS)
+  const [posts, setPosts]         = useState<Post[]>([])
+  const [loading, setLoading]     = useState(true)
   const [filter, setFilter]       = useState<Status>('all')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editCaption, setEditCaption] = useState('')
@@ -40,19 +34,55 @@ export function PostsPage() {
   const [scheduleTime, setScheduleTime] = useState('18:00')
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
+  // Busca posts reais do Supabase
+  const fetchPosts = async () => {
+    if (!user) return
+    setLoading(true)
+    const { data, error } = await supabase
+      .from('posts')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+    if (!error && data) setPosts(data)
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    fetchPosts()
+  }, [user])
+
+  // Realtime — atualiza quando n8n salvar posts novos
+  useEffect(() => {
+    if (!user) return
+    const channel = supabase
+      .channel('posts-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'posts',
+        filter: `user_id=eq.${user.id}`,
+      }, () => {
+        fetchPosts()
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [user])
+
   const filtered = filter === 'all' ? posts : posts.filter(p => p.status === filter)
   const pendingCount = posts.filter(p => p.status === 'pending_approval').length
 
-  const updateStatus = (id: string, status: string, extra?: Partial<Post>) => {
+  const updateStatus = async (id: string, status: string, extra?: Partial<Post>) => {
+    await supabase.from('posts').update({ status, ...extra }).eq('id', id)
     setPosts(prev => prev.map(p => p.id === id ? { ...p, status, ...extra } : p))
   }
 
   const approvePost  = (id: string) => updateStatus(id, 'approved')
   const rejectPost   = (id: string) => updateStatus(id, 'rejected')
-  const approveAll   = () => setPosts(prev => prev.map(p => p.status === 'pending_approval' ? { ...p, status:'approved' } : p))
+  const approveAll   = () => posts.filter(p => p.status === 'pending_approval').forEach(p => approvePost(p.id))
 
   const startEdit = (post: Post) => { setEditingId(post.id); setEditCaption(post.caption) }
-  const saveEdit  = (id: string) => {
+  const saveEdit  = async (id: string) => {
+    await supabase.from('posts').update({ caption: editCaption }).eq('id', id)
     setPosts(prev => prev.map(p => p.id === id ? { ...p, caption: editCaption } : p))
     setEditingId(null)
   }
@@ -63,21 +93,27 @@ export function PostsPage() {
     setScheduleTime('18:00')
     setSchedulingId(id)
   }
-  const saveSchedule = (id: string) => {
+  const saveSchedule = async (id: string) => {
     const dt = new Date(`${scheduleDate}T${scheduleTime}:00`).toISOString()
-    updateStatus(id, 'scheduled', { scheduled_at: dt })
+    await updateStatus(id, 'scheduled', { scheduled_at: dt } as Partial<Post>)
     setSchedulingId(null)
   }
 
-  const deletePost = (id: string) => {
+  const deletePost = async (id: string) => {
+    await supabase.from('posts').delete().eq('id', id)
     setPosts(prev => prev.filter(p => p.id !== id))
     setConfirmDeleteId(null)
   }
 
+  if (loading) return (
+    <div style={{ padding:'28px 32px', display:'flex', alignItems:'center', justifyContent:'center', height:'100%' }}>
+      <div style={{ fontSize:14, color:'var(--text-3)' }}>Carregando posts...</div>
+    </div>
+  )
+
   return (
     <div style={{ padding:'28px 32px' }}>
 
-      {/* Header */}
       <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:24 }}>
         <div>
           <h1 style={{ fontFamily:'var(--font-serif)', fontSize:26, color:'var(--text-1)', marginBottom:4 }}>Aprovar posts</h1>
@@ -85,13 +121,16 @@ export function PostsPage() {
             {pendingCount > 0 ? `${pendingCount} post${pendingCount > 1 ? 's' : ''} aguardando aprovação.` : 'Todos revisados.'}
           </p>
         </div>
-        {pendingCount > 0 && (
-          <button onClick={approveAll} style={btnPrimary}>✓ Aprovar todos</button>
-        )}
+        <div style={{ display:'flex', gap:8 }}>
+          <button onClick={fetchPosts} style={btnSecondary}>↺ Atualizar</button>
+          {pendingCount > 0 && (
+            <button onClick={approveAll} style={btnPrimary}>✓ Aprovar todos</button>
+          )}
+        </div>
       </div>
 
       {/* Filtros */}
-      <div style={{ display:'flex', gap:6, marginBottom:20 }}>
+      <div style={{ display:'flex', gap:6, marginBottom:20, flexWrap:'wrap' }}>
         {([
           ['all',              'Todos',     posts.length],
           ['pending_approval', 'Pendentes', pendingCount],
@@ -118,11 +157,11 @@ export function PostsPage() {
         ))}
       </div>
 
-      {/* Grid */}
       {filtered.length === 0 ? (
         <div style={{ textAlign:'center', padding:'64px 0', color:'var(--text-3)' }}>
           <div style={{ fontSize:32, marginBottom:12 }}>◻</div>
-          <div style={{ fontSize:14 }}>Nenhum post aqui.</div>
+          <div style={{ fontSize:14, marginBottom:6 }}>Nenhum post aqui.</div>
+          <div style={{ fontSize:13 }}>Crie um briefing para gerar posts com IA.</div>
         </div>
       ) : (
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(290px, 1fr))', gap:14 }}>
@@ -138,8 +177,8 @@ export function PostsPage() {
                 opacity: post.status === 'rejected' ? 0.55 : 1 }}>
 
                 {/* Imagem */}
-                <div style={{ height:160, background:'var(--surface-2)', display:'flex',
-                  alignItems:'center', justifyContent:'center', position:'relative' }}>
+                <div style={{ height:180, background:'var(--surface-2)', display:'flex',
+                  alignItems:'center', justifyContent:'center', position:'relative', overflow:'hidden' }}>
                   {post.image_url
                     ? <img src={post.image_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                     : <div style={{ textAlign:'center', color:'var(--text-3)' }}>
@@ -154,7 +193,7 @@ export function PostsPage() {
                   {post.ai_score && (
                     <span style={{ position:'absolute', top:8, left:8, padding:'3px 9px', borderRadius:99,
                       fontSize:10, fontWeight:500, background:'rgba(0,0,0,.55)', color:'white' }}>
-                      ✦ {post.ai_score.toFixed(1)}
+                      ✦ {Number(post.ai_score).toFixed(1)}
                     </span>
                   )}
                   <span style={{ position:'absolute', bottom:8, left:8, padding:'2px 8px', borderRadius:99,
@@ -163,8 +202,6 @@ export function PostsPage() {
 
                 {/* Body */}
                 <div style={{ padding:'12px 14px' }}>
-
-                  {/* Caption / Edição */}
                   {isEditing ? (
                     <div style={{ marginBottom:10 }}>
                       <textarea value={editCaption} onChange={e => setEditCaption(e.target.value)}
@@ -180,11 +217,10 @@ export function PostsPage() {
                   ) : (
                     <p style={{ fontSize:12, color:'var(--text-2)', lineHeight:1.55, marginBottom:10,
                       display:'-webkit-box', WebkitLineClamp:3, WebkitBoxOrient:'vertical', overflow:'hidden' }}>
-                      {post.caption}
+                      {post.caption || 'Sem legenda'}
                     </p>
                   )}
 
-                  {/* Agendamento */}
                   {isScheduling ? (
                     <div style={{ marginBottom:10, padding:'10px', background:'var(--surface-2)',
                       borderRadius:'var(--radius-md)', display:'flex', flexDirection:'column', gap:6 }}>
@@ -192,12 +228,10 @@ export function PostsPage() {
                       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
                         <input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)}
                           style={{ padding:'6px 8px', border:'1px solid var(--border-md)', borderRadius:'var(--radius-md)',
-                            fontSize:12, fontFamily:'var(--font-sans)', outline:'none', color:'var(--text-1)',
-                            background:'var(--surface)' }} />
+                            fontSize:12, fontFamily:'var(--font-sans)', outline:'none', color:'var(--text-1)', background:'var(--surface)' }} />
                         <input type="time" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)}
                           style={{ padding:'6px 8px', border:'1px solid var(--border-md)', borderRadius:'var(--radius-md)',
-                            fontSize:12, fontFamily:'var(--font-sans)', outline:'none', color:'var(--text-1)',
-                            background:'var(--surface)' }} />
+                            fontSize:12, fontFamily:'var(--font-sans)', outline:'none', color:'var(--text-1)', background:'var(--surface)' }} />
                       </div>
                       <div style={{ display:'flex', gap:6 }}>
                         <button onClick={() => saveSchedule(post.id)} style={{ ...btnSm, background:'var(--brand)', color:'white', border:'none' }}>Agendar</button>
@@ -210,7 +244,6 @@ export function PostsPage() {
                     </div>
                   ) : null}
 
-                  {/* Confirmação de delete */}
                   {isDeleting && (
                     <div style={{ marginBottom:10, padding:'10px', background:'var(--red-light)',
                       border:'1px solid rgba(192,57,43,.2)', borderRadius:'var(--radius-md)' }}>
@@ -222,14 +255,13 @@ export function PostsPage() {
                     </div>
                   )}
 
-                  {/* Ações */}
                   {!isEditing && !isScheduling && !isDeleting && (
                     <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
                       {post.status === 'pending_approval' && (
                         <button onClick={() => approvePost(post.id)}
                           style={{ ...btnSm, borderColor:'var(--brand)', color:'var(--brand-dark)' }}>✓ Aprovar</button>
                       )}
-                      {(post.status === 'approved') && (
+                      {post.status === 'approved' && (
                         <button onClick={() => startSchedule(post.id)}
                           style={{ ...btnSm, borderColor:'var(--brand)', color:'var(--brand-dark)' }}>📅 Agendar</button>
                       )}
@@ -257,6 +289,9 @@ export function PostsPage() {
 const btnPrimary: React.CSSProperties = { background:'var(--brand)', color:'white', border:'none',
   borderRadius:'var(--radius-md)', padding:'9px 18px', fontSize:13, fontWeight:500,
   fontFamily:'var(--font-sans)', cursor:'pointer' }
+const btnSecondary: React.CSSProperties = { background:'transparent', color:'var(--text-2)',
+  border:'1px solid var(--border-md)', borderRadius:'var(--radius-md)', padding:'9px 16px',
+  fontSize:13, fontFamily:'var(--font-sans)', cursor:'pointer' }
 const btnSm: React.CSSProperties = { padding:'5px 11px', border:'1px solid var(--border-md)',
   borderRadius:'var(--radius-md)', background:'transparent', color:'var(--text-2)',
   fontSize:12, fontFamily:'var(--font-sans)', cursor:'pointer' }
