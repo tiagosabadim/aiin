@@ -62,7 +62,6 @@ export function AssetsPage() {
     try {
       for (const file of files) {
         const category = cat === 'todas' ? 'campanha' : cat
-<<<<<<< Updated upstream
         const localUrl = URL.createObjectURL(file)
         const tempId = Date.now().toString() + Math.random()
         const newA: Asset = {
@@ -75,31 +74,6 @@ export function AssetsPage() {
           const { url, path } = await uploadAsset(file, 'demo', category)
           setAssets(prev => prev.map(a => a.id === tempId ? { ...a, public_url: url, storage_path: path } : a))
         } catch { /* mantém preview local */ }
-=======
-        // Preview local imediato
-        const localUrl = URL.createObjectURL(file)
-        const tempId = Date.now().toString() + Math.random()
-        const newA: Asset = {
-          id: tempId,
-          name: file.name.replace(/\.[^.]+$/, ''),
-          category,
-          tags: ['novo', 'para-revisar'],
-          performance_score: 0,
-          times_used: 0,
-          bg: '#EEEDFE',
-          icon: '🖼',
-          public_url: localUrl,
-        }
-        setAssets(prev => [newA, ...prev])
-
-        // Upload para o Supabase em background
-        try {
-          const { url } = await uploadAsset(file, 'demo', category)
-          setAssets(prev => prev.map(a => a.id === tempId ? { ...a, public_url: url } : a))
-        } catch {
-          // mantém o preview local se upload falhar
-        }
->>>>>>> Stashed changes
       }
     } finally {
       setUploading(false)
@@ -219,11 +193,7 @@ export function AssetsPage() {
         <div onClick={() => fileRef.current?.click()} style={{
           border:'1px dashed var(--border-md)', borderRadius:'var(--radius-lg)',
           display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
-<<<<<<< Updated upstream
           gap:6, minHeight:190, cursor:'pointer', color:'var(--text-3)', fontSize:13, transition:'all .15s',
-=======
-          gap:6, minHeight:180, cursor:'pointer', color:'var(--text-3)', fontSize:13, transition:'all .15s',
->>>>>>> Stashed changes
         }}
           onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor='var(--brand)'; (e.currentTarget as HTMLDivElement).style.color='var(--brand)' }}
           onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor='var(--border-md)'; (e.currentTarget as HTMLDivElement).style.color='var(--text-3)' }}>
@@ -239,7 +209,6 @@ export function AssetsPage() {
               borderRadius:'var(--radius-lg)', overflow:'visible', background:'var(--surface)',
               position:'relative', boxShadow: isSel ? '0 0 0 3px var(--brand-light)' : 'var(--shadow-sm)',
             }}>
-<<<<<<< Updated upstream
 
               {/* Thumbnail */}
               <div onClick={() => toggleSel(asset.id)} style={{ height:130, background:asset.bg,
@@ -247,13 +216,6 @@ export function AssetsPage() {
                 fontSize:32, overflow:'hidden', borderRadius:'var(--radius-lg) var(--radius-lg) 0 0', cursor:'pointer' }}>
                 {asset.public_url
                   ? <img src={asset.public_url} alt={asset.name} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
-=======
-              <div style={{ height:130, background:asset.bg, display:'flex', alignItems:'center',
-                justifyContent:'center', fontSize:32, overflow:'hidden' }}>
-                {asset.public_url
-                  ? <img src={asset.public_url} alt={asset.name}
-                      style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
->>>>>>> Stashed changes
                   : asset.icon}
               </div>
 
