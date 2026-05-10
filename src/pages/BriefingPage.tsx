@@ -91,8 +91,9 @@ export function BriefingPage() {
       const webhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL
       if (webhookUrl) await fetch(webhookUrl, { method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ briefing_id: briefing.id, brand_id: brandId, name,
-          description, objective, target_audience: audience, tone, formats, hashtags, extra_context: extraContext }) })
+        body: JSON.stringify({ briefing_id: briefing.id, brand_id: brandId, user_id: user.id, name,
+          description, objective, target_audience: audience, tone, formats, hashtags,
+          post_count: totalPosts, extra_context: extraContext }) })
       setSuccess(true)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Erro ao criar briefing.')
