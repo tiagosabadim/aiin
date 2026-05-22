@@ -96,7 +96,7 @@ export async function createContentJob(params: {
   // 5. Chama a Netlify Function (background — retorna imediatamente)
   const apiBase = import.meta.env.VITE_API_BASE ?? ''
   try {
-    await fetch(`${apiBase}/api/generate`, {
+    await fetch(`${apiBase}/api/generate-background`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
