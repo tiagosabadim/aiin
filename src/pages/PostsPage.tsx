@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { approveOutput, rejectOutput, scheduleOutput } from '../lib/api'
-import type { CreativeOutput, OutputStatus } from '../types/database'
-import { useAuth } from '../hooks/useAuth'
+import type { CreativeOutput, OutputStatus, CarouselPage } from '../types/database'
 
 interface Props { workspaceId: string; userId: string }
 
@@ -18,21 +17,23 @@ const STATUS_STYLE: Record<string, { bg: string; color: string }> = {
 }
 
 export function PostsPage({ workspaceId, userId }: Props) {
-  const { user } = useAuth()
   const [outputs, setOutputs]   = useState<CreativeOutput[]>([])
+  const [slides, setSlides]     = useState<Record<string, CarouselPage[]>>({})
   const [loading, setLoading]   = useState(true)
   const [filter, setFilter]     = useState<OutputStatus | 'all'>('all')
+  const [modalOutput, setModalOutput] = useState<CreativeOutput | null>(null)
+  const [modalSlideIdx, setModalSlideIdx] = useState(0)
   const [editingId, setEditingId]     = useState<string | null>(null)
   const [editCaption, setEditCaption] = useState('')
   const [schedulingId, setSchedulingId] = useState<string | null>(null)
   const [scheduleDate, setScheduleDate] = useState('')
   const [scheduleTime, setScheduleTime] = useState('18:00')
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
-  const [modalImg, setModalImg] = useState<string | null>(null)
 
   const fetchOutputs = useCallback(async () => {
     setLoading(true)
-    let q = supabase.from('creative_outputs').select('*').eq('workspace_id', workspaceId).order('created_at', { ascending: false })
+    let q = supabase.from('creative_outputs').select('*')
+      .eq('workspace_id', workspaceId).order('created_at', { ascending: false })
     if (filter !== 'all') q = q.eq('status', filter)
     const { data } = await q
     setOutputs(data ?? [])
@@ -41,12 +42,21 @@ export function PostsPage({ workspaceId, userId }: Props) {
 
   useEffect(() => { fetchOutputs() }, [fetchOutputs])
 
+  // Realtime
   useEffect(() => {
     const ch = supabase.channel(`outputs:${workspaceId}`)
       .on('postgres_changes', { event:'*', schema:'public', table:'creative_outputs', filter:`workspace_id=eq.${workspaceId}` }, fetchOutputs)
       .subscribe()
     return () => { supabase.removeChannel(ch) }
   }, [workspaceId, fetchOutputs])
+
+  // Busca slides do carrossel quando necessário
+  const fetchSlides = async (outputId: string) => {
+    if (slides[outputId]) return
+    const { data } = await supabase.from('carousel_pages')
+      .select('*').eq('creative_output_id', outputId).order('page_number')
+    if (data?.length) setSlides(prev => ({ ...prev, [outputId]: data }))
+  }
 
   const filtered = filter === 'all' ? outputs : outputs.filter(o => o.status === filter)
   const pendingCount = outputs.filter(o => o.status === 'pending').length
@@ -55,12 +65,10 @@ export function PostsPage({ workspaceId, userId }: Props) {
     await approveOutput(id, userId)
     setOutputs(prev => prev.map(o => o.id === id ? { ...o, status: 'approved' } : o))
   }
-
   const handleReject = async (id: string) => {
     await rejectOutput(id, userId)
     setOutputs(prev => prev.map(o => o.id === id ? { ...o, status: 'rejected' } : o))
   }
-
   const handleApproveAll = () => outputs.filter(o => o.status === 'pending').forEach(o => handleApprove(o.id))
 
   const saveEdit = async (id: string) => {
@@ -82,14 +90,63 @@ export function PostsPage({ workspaceId, userId }: Props) {
     setConfirmDeleteId(null)
   }
 
+  const openModal = async (output: CreativeOutput) => {
+    setModalOutput(output)
+    setModalSlideIdx(0)
+    if (output.format?.includes('carrossel') || output.format?.includes('story_sequencia')) {
+      await fetchSlides(output.id)
+    }
+  }
+
+  const modalSlides = modalOutput ? (slides[modalOutput.id] ?? []) : []
+  const currentModalImg = modalSlides.length > 0
+    ? (modalSlides[modalSlideIdx]?.public_url ?? modalOutput?.public_url)
+    : modalOutput?.public_url
+
   return (
     <div style={{ padding:'28px 32px' }}>
 
-      {/* Modal imagem */}
-      {modalImg && (
-        <div onClick={() => setModalImg(null)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.85)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, cursor:'zoom-out' }}>
-          <img src={modalImg} alt="preview" style={{ maxWidth:'90vw', maxHeight:'90vh', borderRadius:12, objectFit:'contain' }} />
-          <button onClick={() => setModalImg(null)} style={{ position:'absolute', top:20, right:24, background:'rgba(255,255,255,.15)', border:'none', color:'white', fontSize:24, cursor:'pointer', borderRadius:'50%', width:40, height:40 }}>×</button>
+      {/* Modal */}
+      {modalOutput && (
+        <div onClick={() => setModalOutput(null)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.9)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }}>
+          <div onClick={e => e.stopPropagation()} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:16, maxWidth:'90vw' }}>
+
+            {/* Imagem */}
+            <div style={{ position:'relative' }}>
+              {currentModalImg
+                ? <img src={currentModalImg} alt="" style={{ maxWidth:'80vw', maxHeight:'75vh', borderRadius:12, objectFit:'contain' }} />
+                : <div style={{ width:400, height:400, background:'rgba(255,255,255,.1)', borderRadius:12, display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontSize:14 }}>Imagem não disponível</div>
+              }
+            </div>
+
+            {/* Navegação de slides */}
+            {modalSlides.length > 1 && (
+              <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                <button onClick={() => setModalSlideIdx(i => Math.max(0, i-1))} disabled={modalSlideIdx === 0}
+                  style={{ width:36, height:36, borderRadius:'50%', border:'1px solid rgba(255,255,255,.3)', background:'rgba(255,255,255,.1)', color:'white', fontSize:18, cursor:'pointer', opacity: modalSlideIdx === 0 ? .4 : 1 }}>‹</button>
+                {modalSlides.map((_, i) => (
+                  <div key={i} onClick={() => setModalSlideIdx(i)} style={{ width:8, height:8, borderRadius:'50%', background: i === modalSlideIdx ? 'white' : 'rgba(255,255,255,.3)', cursor:'pointer' }} />
+                ))}
+                <button onClick={() => setModalSlideIdx(i => Math.min(modalSlides.length-1, i+1))} disabled={modalSlideIdx === modalSlides.length-1}
+                  style={{ width:36, height:36, borderRadius:'50%', border:'1px solid rgba(255,255,255,.3)', background:'rgba(255,255,255,.1)', color:'white', fontSize:18, cursor:'pointer', opacity: modalSlideIdx === modalSlides.length-1 ? .4 : 1 }}>›</button>
+              </div>
+            )}
+
+            {/* Info do slide */}
+            {modalSlides.length > 1 && modalSlides[modalSlideIdx] && (
+              <div style={{ background:'rgba(255,255,255,.08)', borderRadius:10, padding:'12px 20px', maxWidth:500, textAlign:'center' }}>
+                <div style={{ fontSize:13, fontWeight:500, color:'white', marginBottom:4 }}>{modalSlides[modalSlideIdx].headline}</div>
+                <div style={{ fontSize:12, color:'rgba(255,255,255,.7)' }}>{modalSlides[modalSlideIdx].body}</div>
+              </div>
+            )}
+
+            {/* Legenda */}
+            <div style={{ background:'rgba(255,255,255,.08)', borderRadius:10, padding:'12px 20px', maxWidth:500, textAlign:'center' }}>
+              <div style={{ fontSize:12, color:'rgba(255,255,255,.8)', lineHeight:1.6 }}>{modalOutput.caption}</div>
+            </div>
+
+            <button onClick={() => setModalOutput(null)} style={{ background:'rgba(255,255,255,.15)', border:'none', color:'white', fontSize:13, padding:'8px 20px', borderRadius:99, cursor:'pointer' }}>Fechar</button>
+          </div>
         </div>
       )}
 
@@ -98,7 +155,7 @@ export function PostsPage({ workspaceId, userId }: Props) {
         <div>
           <h1 style={{ fontFamily:'var(--font-serif)', fontSize:26, color:'var(--text-1)', marginBottom:4 }}>Aprovar conteúdo</h1>
           <p style={{ fontSize:14, color:'var(--text-2)' }}>
-            {pendingCount > 0 ? `${pendingCount} post${pendingCount > 1 ? 's' : ''} aguardando aprovação.` : 'Todos os posts foram revisados.'}
+            {pendingCount > 0 ? `${pendingCount} post${pendingCount > 1 ? 's' : ''} aguardando aprovação.` : 'Todos revisados.'}
           </p>
         </div>
         <div style={{ display:'flex', gap:8 }}>
@@ -110,22 +167,22 @@ export function PostsPage({ workspaceId, userId }: Props) {
       {/* Filtros */}
       <div style={{ display:'flex', gap:6, marginBottom:20, flexWrap:'wrap' }}>
         {([
-          ['all',       'Todos',      outputs.length],
-          ['pending',   'Pendentes',  pendingCount],
-          ['approved',  'Aprovados',  outputs.filter(o => o.status==='approved').length],
-          ['scheduled', 'Agendados',  outputs.filter(o => o.status==='scheduled').length],
-          ['published', 'Publicados', outputs.filter(o => o.status==='published').length],
-          ['rejected',  'Recusados',  outputs.filter(o => o.status==='rejected').length],
-        ] as [OutputStatus | 'all', string, number][]).map(([val, label, count]) => (
+          ['all','Todos',outputs.length],
+          ['pending','Pendentes',pendingCount],
+          ['approved','Aprovados',outputs.filter(o=>o.status==='approved').length],
+          ['scheduled','Agendados',outputs.filter(o=>o.status==='scheduled').length],
+          ['published','Publicados',outputs.filter(o=>o.status==='published').length],
+          ['rejected','Recusados',outputs.filter(o=>o.status==='rejected').length],
+        ] as [OutputStatus|'all',string,number][]).map(([val,label,count]) => (
           <button key={val} onClick={() => setFilter(val)} style={{
             display:'flex', alignItems:'center', gap:5, padding:'6px 14px', borderRadius:99,
-            border:`1px solid ${filter === val ? 'var(--brand)' : 'var(--border-md)'}`,
-            background: filter === val ? 'var(--brand-light)' : 'transparent',
-            color: filter === val ? 'var(--brand-dark)' : 'var(--text-2)',
-            fontSize:13, fontFamily:'var(--font-sans)', cursor:'pointer', fontWeight: filter === val ? 500 : 400,
+            border:`1px solid ${filter===val ? 'var(--brand)' : 'var(--border-md)'}`,
+            background: filter===val ? 'var(--brand-light)' : 'transparent',
+            color: filter===val ? 'var(--brand-dark)' : 'var(--text-2)',
+            fontSize:13, fontFamily:'var(--font-sans)', cursor:'pointer', fontWeight: filter===val ? 500 : 400,
           }}>
             {label}
-            {count > 0 && <span style={{ background: filter === val ? 'var(--brand)' : 'var(--surface-2)', color: filter === val ? 'white' : 'var(--text-3)', fontSize:10, padding:'1px 6px', borderRadius:99 }}>{count}</span>}
+            {count > 0 && <span style={{ background: filter===val ? 'var(--brand)' : 'var(--surface-2)', color: filter===val ? 'white' : 'var(--text-3)', fontSize:10, padding:'1px 6px', borderRadius:99 }}>{count}</span>}
           </button>
         ))}
       </div>
@@ -135,35 +192,61 @@ export function PostsPage({ workspaceId, userId }: Props) {
       ) : filtered.length === 0 ? (
         <div style={{ textAlign:'center', padding:'64px 0', color:'var(--text-3)' }}>
           <div style={{ fontSize:32, marginBottom:12 }}>◻</div>
-          <div style={{ fontSize:14, marginBottom:6 }}>Nenhum post aqui.</div>
+          <div style={{ fontSize:14, marginBottom:6 }}>Nenhum post ainda.</div>
           <div style={{ fontSize:13 }}>Faça um pedido para gerar conteúdo com a IA.</div>
         </div>
       ) : (
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(290px, 1fr))', gap:14 }}>
           {filtered.map(output => {
             const st = STATUS_STYLE[output.status] ?? STATUS_STYLE.pending
+            const isCarousel = output.format?.includes('carrossel') || output.format?.includes('story_sequencia')
+            const outputSlides = slides[output.id] ?? []
             const isEditing    = editingId    === output.id
             const isScheduling = schedulingId === output.id
             const isDeleting   = confirmDeleteId === output.id
 
             return (
-              <div key={output.id} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--radius-lg)', overflow:'hidden', boxShadow:'var(--shadow-sm)', opacity: output.status === 'rejected' ? .55 : 1 }}>
+              <div key={output.id} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--radius-lg)', overflow:'hidden', boxShadow:'var(--shadow-sm)', opacity: output.status==='rejected' ? .55 : 1 }}>
 
-                {/* Imagem */}
-                <div style={{ height:190, background:'var(--surface-2)', display:'flex', alignItems:'center', justifyContent:'center', position:'relative', overflow:'hidden', cursor: output.public_url ? 'zoom-in' : 'default' }}
-                  onClick={() => output.public_url && setModalImg(output.public_url)}>
+                {/* Thumbnail clicável */}
+                <div style={{ height:190, background:'var(--surface-2)', position:'relative', overflow:'hidden', cursor:'zoom-in' }}
+                  onClick={() => openModal(output)}>
                   {output.public_url
                     ? <img src={output.public_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                    : <div style={{ textAlign:'center', color:'var(--text-3)' }}><div style={{ fontSize:28, marginBottom:4 }}>🖼</div><div style={{ fontSize:11 }}>Gerando imagem...</div></div>
+                    : <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100%', color:'var(--text-3)', gap:8 }}>
+                        <div style={{ fontSize:28 }}>⏳</div>
+                        <div style={{ fontSize:12 }}>Gerando imagem...</div>
+                      </div>
                   }
                   <span style={{ position:'absolute', top:8, right:8, padding:'3px 9px', borderRadius:99, fontSize:10, fontWeight:500, background:st.bg, color:st.color }}>{STATUS_LABEL[output.status]}</span>
                   {output.ai_score && <span style={{ position:'absolute', top:8, left:8, padding:'3px 9px', borderRadius:99, fontSize:10, fontWeight:500, background:'rgba(0,0,0,.55)', color:'white' }}>✦ {Number(output.ai_score).toFixed(1)}</span>}
-                  {output.format && <span style={{ position:'absolute', bottom:8, left:8, padding:'2px 8px', borderRadius:99, fontSize:9, background:'rgba(0,0,0,.45)', color:'white' }}>{output.format}</span>}
-                  {output.public_url && <span style={{ position:'absolute', bottom:8, right:8, padding:'2px 8px', borderRadius:99, fontSize:9, background:'rgba(0,0,0,.45)', color:'white' }}>🔍 ampliar</span>}
+
+                  {/* Badge carrossel com contagem de slides */}
+                  <div style={{ position:'absolute', bottom:8, left:8, display:'flex', gap:6 }}>
+                    <span style={{ padding:'2px 8px', borderRadius:99, fontSize:9, background:'rgba(0,0,0,.45)', color:'white' }}>{output.format}</span>
+                    {isCarousel && outputSlides.length > 0 && (
+                      <span style={{ padding:'2px 8px', borderRadius:99, fontSize:9, background:'rgba(0,0,0,.45)', color:'white' }}>{outputSlides.length} slides</span>
+                    )}
+                  </div>
+                  <span style={{ position:'absolute', bottom:8, right:8, padding:'2px 8px', borderRadius:99, fontSize:9, background:'rgba(0,0,0,.45)', color:'white' }}>🔍 ampliar</span>
                 </div>
 
+                {/* Miniaturas de slides do carrossel */}
+                {isCarousel && outputSlides.length > 1 && (
+                  <div style={{ display:'flex', gap:4, padding:'8px 10px 0', overflowX:'auto' }}>
+                    {outputSlides.map((slide, i) => (
+                      <div key={i} onClick={() => openModal(output)} style={{ width:40, height:40, flexShrink:0, borderRadius:6, overflow:'hidden', border:'1px solid var(--border)', cursor:'pointer' }}>
+                        {slide.public_url
+                          ? <img src={slide.public_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                          : <div style={{ width:'100%', height:'100%', background:'var(--surface-2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, color:'var(--text-3)' }}>{i+1}</div>
+                        }
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {/* Body */}
-                <div style={{ padding:'12px 14px' }}>
+                <div style={{ padding:'10px 14px' }}>
                   {isEditing ? (
                     <div style={{ marginBottom:10 }}>
                       <textarea value={editCaption} onChange={e => setEditCaption(e.target.value)} autoFocus
@@ -180,13 +263,13 @@ export function PostsPage({ workspaceId, userId }: Props) {
                   )}
 
                   {isScheduling ? (
-                    <div style={{ marginBottom:10, padding:'10px', background:'var(--surface-2)', borderRadius:'var(--radius-md)', display:'flex', flexDirection:'column', gap:6 }}>
+                    <div style={{ marginBottom:10, padding:10, background:'var(--surface-2)', borderRadius:'var(--radius-md)', display:'flex', flexDirection:'column', gap:6 }}>
                       <div style={{ fontSize:12, fontWeight:500, color:'var(--text-1)' }}>Agendar publicação</div>
                       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
                         <input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)}
-                          style={{ padding:'6px 8px', border:'1px solid var(--border-md)', borderRadius:'var(--radius-md)', fontSize:12, fontFamily:'var(--font-sans)', outline:'none', color:'var(--text-1)', background:'var(--surface)' }} />
+                          style={{ padding:'6px 8px', border:'1px solid var(--border-md)', borderRadius:'var(--radius-md)', fontSize:12, outline:'none', color:'var(--text-1)', background:'var(--surface)', fontFamily:'var(--font-sans)' }} />
                         <input type="time" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)}
-                          style={{ padding:'6px 8px', border:'1px solid var(--border-md)', borderRadius:'var(--radius-md)', fontSize:12, fontFamily:'var(--font-sans)', outline:'none', color:'var(--text-1)', background:'var(--surface)' }} />
+                          style={{ padding:'6px 8px', border:'1px solid var(--border-md)', borderRadius:'var(--radius-md)', fontSize:12, outline:'none', color:'var(--text-1)', background:'var(--surface)', fontFamily:'var(--font-sans)' }} />
                       </div>
                       <div style={{ display:'flex', gap:6 }}>
                         <button onClick={() => saveSchedule(output.id)} style={{ ...btnSm, background:'var(--brand)', color:'white', border:'none' }}>Agendar</button>
@@ -198,7 +281,7 @@ export function PostsPage({ workspaceId, userId }: Props) {
                   ) : null}
 
                   {isDeleting && (
-                    <div style={{ marginBottom:10, padding:'10px', background:'var(--red-light)', border:'1px solid rgba(192,57,43,.2)', borderRadius:'var(--radius-md)' }}>
+                    <div style={{ marginBottom:10, padding:10, background:'var(--red-light)', border:'1px solid rgba(192,57,43,.2)', borderRadius:'var(--radius-md)' }}>
                       <div style={{ fontSize:12, color:'var(--red)', marginBottom:8 }}>Deletar permanentemente?</div>
                       <div style={{ display:'flex', gap:6 }}>
                         <button onClick={() => deleteOutput(output.id)} style={{ ...btnSm, background:'var(--red)', color:'white', border:'none' }}>Deletar</button>
@@ -213,7 +296,7 @@ export function PostsPage({ workspaceId, userId }: Props) {
                         <button onClick={() => handleApprove(output.id)} style={{ ...btnSm, borderColor:'var(--brand)', color:'var(--brand-dark)' }}>✓ Aprovar</button>
                       )}
                       {output.status === 'approved' && (
-                        <button onClick={() => { const t = new Date(); t.setDate(t.getDate()+1); setScheduleDate(t.toISOString().split('T')[0]); setScheduleTime('18:00'); setSchedulingId(output.id) }}
+                        <button onClick={() => { const t=new Date(); t.setDate(t.getDate()+1); setScheduleDate(t.toISOString().split('T')[0]); setScheduleTime('18:00'); setSchedulingId(output.id) }}
                           style={{ ...btnSm, borderColor:'var(--brand)', color:'var(--brand-dark)' }}>📅 Agendar</button>
                       )}
                       {output.status !== 'published' && (
