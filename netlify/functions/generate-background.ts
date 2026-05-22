@@ -313,7 +313,6 @@ REQUIREMENTS:
       size,
       quality: 'high',
       output_format: 'png',
-      response_format: 'b64_json',
     }),
   })
 
@@ -321,5 +320,5 @@ REQUIREMENTS:
 
   if (data.error) throw new Error(`gpt-image-2: ${data.error.message}`)
 
-  return { b64: data.data[0].b64_json }
+  const imgData = data.data[0]; return { b64: imgData.b64_json || imgData.url, isUrl: !imgData.b64_json }
 }
