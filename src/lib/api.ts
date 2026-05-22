@@ -50,7 +50,8 @@ export async function createContentJob(params: {
   const { workspaceId, briefId, brandId, jobType, quantity, inputPayload } = params
 
   // 1. Calcula créditos
-  const requiredCredits = CREDIT_COSTS[jobType] * quantity
+  const creditPerUnit = CREDIT_COSTS[jobType] ?? 1
+  const requiredCredits = creditPerUnit * (quantity ?? 1)
 
   // 2. Verifica saldo
   const available = await getAvailableCredits(workspaceId)
