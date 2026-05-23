@@ -1,7 +1,9 @@
 // ============================================================
-//  aiin · Netlify Background Function v2
-//  Usa Responses API com previous_response_id para manter
-//  contexto visual da marca (logo, referências) entre gerações
+//  aiin · Netlify Background Function v3
+//  - Post estático sempre 1080x1350
+//  - Título do briefing vai pro prompt
+//  - Todos os dados do onboarding no prompt
+//  - Responses API com contexto visual da marca
 // ============================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -29,6 +31,20 @@ interface GeneratedContent {
   ai_score: number
 }
 
+// ---- Tamanho fixo por tipo ----
+function getImageSize(jobType: string): string {
+  if (jobType === 'story' || jobType === 'story_sequencia' || jobType === 'capa_reels') {
+    return '1024x1536' // 9:16 vertical
+  }
+  if (jobType === 'post_simples' || jobType === 'post_premium') {
+    return '1080x1350' // 4:5 retrato — maior alcance no feed
+  }
+  if (jobType.includes('carrossel')) {
+    return '1080x1350' // carrossel também retrato
+  }
+  return '1080x1350' // padrão
+}
+
 // ============================================================
 //  Handler principal
 // ============================================================
@@ -38,11 +54,18 @@ export const handler = async (event: any) => {
   try {
     const body = JSON.parse(event.body ?? '{}')
     job_id = body.job_id
-    const { workspace_id, brand_id, job_type, quantity, extra_context, hashtags } = body
+    const {
+      workspace_id, brand_id, job_type, quantity,
+      extra_context, hashtags,
+      // Dados completos do briefing/onboarding
+      title, objective, tone_of_voice, target_audience,
+      products, design_rules, forbidden_words, slogans,
+      color_palette, instagram_handle,
+    } = body
 
     await supabase.from('content_jobs').update({ status: 'processing' }).eq('id', job_id)
 
-    // Busca brand completo com assets
+    // Busca brand completo
     const { data: brand } = await supabase
       .from('brand_profiles')
       .select('*, brand_assets(*), brand_learnings(*)')
@@ -51,25 +74,41 @@ export const handler = async (event: any) => {
 
     if (!brand) throw new Error('Marca não encontrada')
 
+    // Mescla dados do briefing com dados da marca
+    // (briefing tem prioridade — cliente pode querer tom diferente)
+    const mergedBrand = {
+      ...brand,
+      tone_of_voice: tone_of_voice || brand.tone_of_voice,
+      target_audience: target_audience || brand.target_audience,
+      products: products || brand.products,
+      design_rules: design_rules || brand.design_rules,
+      forbidden_words: forbidden_words || brand.forbidden_words,
+      color_palette: color_palette || brand.color_palette,
+      slogans: slogans || brand.slogans,
+    }
+
     const slideCount = job_type === 'carrossel_5' ? 5
       : job_type === 'carrossel_7' ? 7
       : job_type === 'story_sequencia' ? 3
       : 1
 
     // Garante contexto visual da marca (logo + referências)
-    const brandContextId = await ensureBrandContext(brand)
+    const brandContextId = await ensureBrandContext(mergedBrand)
 
-    // Processa cada post
+    // Processa cada post da quantidade solicitada
     for (let i = 0; i < (quantity ?? 1); i++) {
       try {
-        // 1. GPT-4o gera estrutura + prompts de imagem
-        const content = await generateContent(brand, job_type, slideCount, extra_context, hashtags)
+        // 1. GPT-4o gera estrutura completa
+        const content = await generateContent(
+          mergedBrand, job_type, slideCount,
+          title, objective, extra_context, hashtags
+        )
 
-        // 2. gpt-image-2 via Responses API com contexto da marca
+        // 2. Gera imagem para cada slide
         for (let s = 0; s < content.slides.length; s++) {
           const slide = content.slides[s]
           const imageResult = await generateImageWithBrandContext(
-            slide, brand, job_type, brandContextId
+            slide, mergedBrand, job_type, brandContextId
           )
 
           // Upload para Supabase Storage
@@ -83,12 +122,14 @@ export const handler = async (event: any) => {
           if (!uploadErr) {
             const { data: urlData } = supabase.storage.from('posts').getPublicUrl(fileName)
             content.slides[s].public_url = urlData.publicUrl
+          } else {
+            console.error('Upload error:', uploadErr.message)
           }
         }
 
         // 3. Salva creative_output
         const firstSlide = content.slides[0]
-        const { data: output } = await supabase.from('creative_outputs').insert({
+        const { data: output, error: outErr } = await supabase.from('creative_outputs').insert({
           workspace_id,
           job_id,
           brand_id,
@@ -102,6 +143,8 @@ export const handler = async (event: any) => {
           status: 'pending',
           ai_score: content.ai_score,
         }).select().single()
+
+        if (outErr) console.error('Erro ao salvar output:', outErr.message)
 
         // 4. Salva slides do carrossel
         if (output && slideCount > 1) {
@@ -135,7 +178,6 @@ export const handler = async (event: any) => {
       await supabase.from('content_jobs')
         .update({ status: 'error', error_message: err.message })
         .eq('id', job_id)
-
       const body = JSON.parse(event.body ?? '{}')
       if (body.workspace_id) {
         await supabase.rpc('refund_credits', {
@@ -151,55 +193,55 @@ export const handler = async (event: any) => {
 }
 
 // ============================================================
-//  Garante contexto visual da marca via Responses API
-//  Faz upload da logo + referências e salva o response_id
+//  Garante contexto visual da marca (logo + referências)
 // ============================================================
 async function ensureBrandContext(brand: any): Promise<string | null> {
-  // Se já tem contexto salvo, retorna direto
-  if (brand.openai_thread_id) return brand.openai_thread_id
+  if (brand.openai_thread_id) {
+    console.log('Usando contexto existente:', brand.openai_thread_id)
+    return brand.openai_thread_id
+  }
 
-  // Busca logo e assets da marca
   const logoAsset = brand.brand_assets?.find((a: any) => a.asset_type === 'logo')
-  const refAssets = brand.brand_assets?.slice(0, 4) ?? [] // até 4 referências
+  const refAssets = brand.brand_assets?.filter((a: any) => a.asset_type !== 'logo').slice(0, 3) ?? []
 
-  if (!logoAsset && refAssets.length === 0) return null
+  if (!logoAsset && refAssets.length === 0) {
+    console.log('Sem assets — gerando sem contexto visual')
+    return null
+  }
 
   try {
-    // Monta mensagem com imagens de referência
-    const content: any[] = [
-      {
-        type: 'input_text',
-        text: `Esta é a identidade visual da marca ${brand.name}. 
-Memorize estes elementos visuais para usar em todas as gerações:
-- Logo: deve aparecer em todas as imagens geradas
-- Cores da marca: ${brand.color_palette?.map((c: any) => `${c.name} ${c.hex}`).join(', ')}
-- Slogan: ${brand.slogans?.find((s: any) => s.active)?.text ?? ''}
-- Estilo: ${brand.design_rules ?? 'profissional e moderno'}
-- Segmento: ${brand.segment}
+    const content: any[] = [{
+      type: 'input_text',
+      text: `Esta é a identidade visual completa da marca "${brand.name}".
+Memorize todos estes elementos para aplicar em TODAS as imagens geradas:
 
-Use estes elementos em TODAS as imagens que gerar para esta marca.`,
-      }
-    ]
+IDENTIDADE VISUAL:
+- Nome da marca: ${brand.name}
+- Segmento: ${brand.segment}
+- Cores oficiais: ${brand.color_palette?.map((c: any) => `${c.name} ${c.hex}`).join(', ')}
+- Slogan ativo: ${brand.slogans?.find((s: any) => s.active)?.text ?? ''}
+- Estilo de design: ${brand.design_rules ?? 'profissional, clean, moderno'}
+- Tom de comunicação: ${brand.tone_of_voice}
+- Público-alvo: ${brand.target_audience}
+
+A logo enviada deve aparecer em TODAS as imagens geradas.
+As referências visuais mostram o estilo visual que a marca usa.
+Mantenha consistência total com esta identidade em todas as gerações.`,
+    }]
 
     // Adiciona logo
     if (logoAsset?.public_url) {
-      content.push({
-        type: 'input_image',
-        image_url: logoAsset.public_url,
-      })
+      content.push({ type: 'input_image', image_url: logoAsset.public_url })
+      console.log('Logo adicionada ao contexto')
     }
 
     // Adiciona referências visuais
     for (const asset of refAssets) {
-      if (asset.public_url && asset.asset_type !== 'logo') {
-        content.push({
-          type: 'input_image',
-          image_url: asset.public_url,
-        })
+      if (asset.public_url) {
+        content.push({ type: 'input_image', image_url: asset.public_url })
       }
     }
 
-    // Cria contexto via Responses API
     const res = await fetch(`${OPENAI_BASE}/responses`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${OPENAI_KEY}`, 'Content-Type': 'application/json' },
@@ -210,10 +252,12 @@ Use estes elementos em TODAS as imagens que gerar para esta marca.`,
     })
 
     const data = await res.json()
+    if (data.error) throw new Error(data.error.message)
+
     const responseId = data.id
+    console.log('Contexto da marca criado:', responseId)
 
     if (responseId) {
-      // Salva o response_id na marca para reusar
       await supabase.from('brand_profiles')
         .update({ openai_thread_id: responseId })
         .eq('id', brand.id)
@@ -222,7 +266,7 @@ Use estes elementos em TODAS as imagens que gerar para esta marca.`,
     return responseId ?? null
 
   } catch (err: any) {
-    console.error('Erro ao criar contexto da marca:', err.message)
+    console.error('Erro ao criar contexto:', err.message)
     return null
   }
 }
@@ -236,34 +280,36 @@ async function generateImageWithBrandContext(
 
   const brandColors = brand.color_palette?.map((c: any) => `${c.name}: ${c.hex}`).join(', ') ?? ''
   const activeSlogans = brand.slogans?.filter((s: any) => s.active).map((s: any) => s.text).join(', ') ?? ''
+  const size = getImageSize(jobType)
 
-  const size = jobType === 'story' || jobType === 'story_sequencia' || jobType === 'capa_reels'
-    ? '1024x1536' : '1024x1024'
+  const prompt = `Gere uma imagem profissional para Instagram da marca ${brand.name}.
 
-  const prompt = `Crie uma imagem profissional para Instagram para a marca ${brand.name}.
-
+DESCRIÇÃO VISUAL:
 ${slide.visual_prompt}
 
-OBRIGATÓRIO incluir na imagem:
-${slide.headline ? `- Título em destaque (em português): "${slide.headline}"` : ''}
-${slide.body ? `- Texto secundário (em português): "${slide.body}"` : ''}
-${slide.cta ? `- Botão ou chamada para ação: "${slide.cta}"` : ''}
-- Logo da marca conforme referência enviada anteriormente
-- Cores da marca: ${brandColors}
-- Slogan: ${activeSlogans}
-- Estilo: ${brand.design_rules ?? 'profissional, moderno, clean'}
-- Segmento: ${brand.segment}
+TEXTO OBRIGATÓRIO NA IMAGEM (em português):
+${slide.headline ? `• Título principal: "${slide.headline}"` : ''}
+${slide.body ? `• Texto secundário: "${slide.body}"` : ''}
+${slide.cta ? `• Call-to-action: "${slide.cta}"` : ''}
 
-Qualidade máxima, texto legível em português, identidade visual consistente.`
+IDENTIDADE DA MARCA (aplicar obrigatoriamente):
+• Logo: posicionar conforme referência visual enviada anteriormente
+• Cores: ${brandColors}
+• Slogan: ${activeSlogans}
+• Estilo: ${brand.design_rules ?? 'profissional, clean, moderno'}
+• Segmento: ${brand.segment}
+
+REQUISITOS TÉCNICOS:
+• Formato: ${size === '1080x1350' ? '4:5 retrato (1080x1350px)' : '9:16 vertical (1080x1920px)'}
+• Qualidade máxima para Instagram
+• Texto legível e em português
+• Alta resolução, sem bordas desnecessárias`
 
   const requestBody: any = {
     model: 'gpt-4o',
     input: [{
       role: 'user',
-      content: [{
-        type: 'input_text',
-        text: prompt,
-      }]
+      content: [{ type: 'input_text', text: prompt }]
     }],
     tools: [{
       type: 'image_generation',
@@ -273,7 +319,6 @@ Qualidade máxima, texto legível em português, identidade visual consistente.`
     }],
   }
 
-  // Usa contexto da marca se disponível
   if (previousResponseId) {
     requestBody.previous_response_id = previousResponseId
   }
@@ -285,21 +330,23 @@ Qualidade máxima, texto legível em português, identidade visual consistente.`
   })
 
   const data = await res.json()
-
   if (data.error) throw new Error(`Responses API: ${data.error.message}`)
 
-  // Extrai b64 da resposta
   const imageOutput = data.output?.find((o: any) => o.type === 'image_generation_call')
-  if (!imageOutput?.result) throw new Error('Imagem não gerada na resposta')
+  if (!imageOutput?.result) {
+    console.error('Response completo:', JSON.stringify(data).slice(0, 500))
+    throw new Error('Imagem não retornada pela Responses API')
+  }
 
   return { b64: imageOutput.result }
 }
 
 // ============================================================
-//  GPT-4o — gera estrutura completa do post
+//  GPT-4o — gera estrutura completa com TODOS os dados
 // ============================================================
 async function generateContent(
   brand: any, jobType: string, slideCount: number,
+  title: string, objective: string,
   extraContext: string, hashtags: string[]
 ): Promise<GeneratedContent> {
 
@@ -307,51 +354,84 @@ async function generateContent(
   const brandColors = brand.color_palette?.map((c: any) => `${c.name}: ${c.hex}`).join(', ') ?? ''
   const activeSlogans = brand.slogans?.filter((s: any) => s.active).map((s: any) => s.text).join(', ') ?? ''
   const learnings = brand.brand_learnings?.map((l: any) => l.content).join('\n') ?? ''
+  const imageSize = getImageSize(jobType)
 
-  const prompt = `Você é um especialista em marketing digital e Instagram no Brasil.
+  const prompt = `Você é um especialista em marketing digital e criação de conteúdo para Instagram no Brasil.
+Crie conteúdo SEMPRE em português brasileiro, seguindo rigorosamente a identidade da marca.
 
-BRAND DNA:
-${brand.ai_brand_dna ?? ''}
+════════════════════════════════════
+BRAND DNA COMPLETO
+════════════════════════════════════
+${brand.ai_brand_dna ?? '(Brand DNA não gerado ainda)'}
 
-MARCA: ${brand.name}
-Segmento: ${brand.segment}
-Público: ${brand.target_audience}
-Tom de voz: ${brand.tone_of_voice}
-Objetivo: ${brand.main_objective}
-Produtos/Serviços: ${brand.products}
-Slogan: ${activeSlogans}
-Cores: ${brandColors}
-Regras de design: ${brand.design_rules ?? ''}
-Palavras proibidas: ${brand.forbidden_words?.join(', ') ?? ''}
-${learnings ? `\nAprendizados anteriores:\n${learnings}` : ''}
+════════════════════════════════════
+IDENTIDADE DA MARCA
+════════════════════════════════════
+Nome: ${brand.name}
+Segmento: ${brand.segment ?? 'não informado'}
+Cidade/Região: ${brand.city ?? 'não informada'}
+Público-alvo: ${brand.target_audience ?? 'não informado'}
+Objetivo principal da marca: ${brand.main_objective ?? 'não informado'}
+Produtos/Serviços: ${brand.products ?? 'não informado'}
+Tom de voz: ${brand.tone_of_voice ?? 'não informado'}
+Slogan(s) ativo(s): ${activeSlogans || 'não definido'}
+Cores da marca: ${brandColors || 'não definidas'}
+Tipografia: ${brand.typography?.title ?? 'não definida'}
+Regras de design: ${brand.design_rules ?? 'nenhuma regra específica'}
+Palavras/abordagens proibidas: ${brand.forbidden_words?.join(', ') ?? 'nenhuma'}
+Instagram: ${brand.instagram_handle ?? 'não informado'}
+${learnings ? `\nAprendizados de posts anteriores:\n${learnings}` : ''}
 
-PEDIDO:
-- Tipo: ${jobType}
-- ${isCarousel ? `Carrossel com ${slideCount} slides` : 'Post único'}
-- Contexto extra: ${extraContext ?? ''}
-- Hashtags base: ${hashtags?.join(' ') ?? ''}
+════════════════════════════════════
+BRIEFING DO PEDIDO
+════════════════════════════════════
+${title ? `Tema/Título da postagem: ${title}` : ''}
+Objetivo do post: ${objective ?? 'não informado'}
+Tipo de conteúdo: ${jobType}
+${isCarousel ? `Formato: Carrossel com ${slideCount} slides` : 'Formato: Post único'}
+Contexto extra / instruções adicionais: ${extraContext ?? 'nenhum'}
+Hashtags base sugeridas: ${hashtags?.join(' ') ?? 'usar hashtags relevantes da marca'}
+Dimensão da imagem: ${imageSize}
 
+════════════════════════════════════
+INSTRUÇÕES DE CRIAÇÃO
+════════════════════════════════════
 ${isCarousel ? `
-Crie um carrossel de ${slideCount} slides:
-- Slide 1 (CAPA): headline que para o scroll, impactante
-- Slides 2 a ${slideCount - 1}: um ponto de valor por slide, texto curto
-- Slide ${slideCount}: CTA claro e direto
-` : 'Crie um post único com imagem e legenda.'}
+Estrutura do carrossel (${slideCount} slides):
+• Slide 1 (CAPA): headline impactante que para o scroll. Deve despertar curiosidade ou identificação imediata.
+• Slides 2 a ${slideCount - 1}: um ponto de valor por slide. Texto curto, direto, fácil de ler rapidamente.
+• Slide ${slideCount} (CTA): chamada para ação clara e específica. Diga exatamente o que o usuário deve fazer.
 
-Para cada slide, o visual_prompt deve ser em inglês e muito detalhado:
-incluir composição, iluminação, estilo, elementos visuais, texto que deve aparecer na imagem em português.
+Narrativa progressiva — cada slide deve fazer o usuário querer ver o próximo.
+` : `
+Post único:
+• Imagem impactante e coerente com a identidade visual da marca
+• Legenda completa com emojis, linha de destaque e hashtags
+`}
 
-Retorne SOMENTE este JSON sem markdown:
+Para o visual_prompt de cada slide, descreva em INGLÊS detalhado:
+- Composição e layout (onde fica cada elemento)
+- Iluminação e ambiente
+- Elementos visuais e estilo
+- Textos que devem aparecer NA imagem (em português)
+- Referência às cores da marca: ${brandColors}
+- Estilo fotográfico/ilustrativo
+- Qualidade e mood da imagem
+
+════════════════════════════════════
+FORMATO DE RESPOSTA
+════════════════════════════════════
+Retorne SOMENTE este JSON válido, sem markdown, sem explicações:
 {
-  "caption": "legenda em português com emojis e quebras de linha\\n\\n#hashtags",
-  "hashtags": ["#tag1", "#tag2"],
+  "caption": "legenda completa em português com emojis e quebras de linha\\n\\n#hashtag1 #hashtag2",
+  "hashtags": ["#hashtag1", "#hashtag2", "#hashtag3"],
   "ai_score": 8.5,
   "slides": [
     {
-      "headline": "título em português",
-      "body": "texto corpo em português",
-      "cta": "chamada para ação em português (só último slide)",
-      "visual_prompt": "detailed English prompt for image generation with brand colors, style, text overlays in Portuguese, composition"
+      "headline": "título curto e impactante em português",
+      "body": "texto do corpo em português (2-3 linhas no máximo)",
+      "cta": "chamada para ação em português (obrigatório apenas no último slide)",
+      "visual_prompt": "Detailed English prompt: composition, lighting, style, brand colors ${brandColors}, text overlays in Portuguese, photography/illustration style, mood, quality"
     }
   ]
 }`
@@ -362,10 +442,13 @@ Retorne SOMENTE este JSON sem markdown:
     body: JSON.stringify({
       model: 'gpt-4o',
       messages: [
-        { role: 'system', content: 'Você é um especialista em marketing digital no Brasil. Sempre responda em JSON válido sem markdown.' },
+        {
+          role: 'system',
+          content: 'Você é um especialista em marketing digital e Instagram no Brasil. Crie conteúdo em português brasileiro. Sempre retorne JSON válido sem markdown.',
+        },
         { role: 'user', content: prompt },
       ],
-      temperature: 0.7,
+      temperature: 0.75,
       response_format: { type: 'json_object' },
     }),
   })
@@ -373,5 +456,16 @@ Retorne SOMENTE este JSON sem markdown:
   const data = await res.json()
   if (data.error) throw new Error(`GPT-4o: ${data.error.message}`)
 
-  return JSON.parse(data.choices[0].message.content)
+  const result = JSON.parse(data.choices[0].message.content)
+
+  // Garante que slides é array e tem pelo menos 1 item
+  if (!result.slides || result.slides.length === 0) {
+    result.slides = [{
+      headline: title || brand.name,
+      body: extraContext || '',
+      visual_prompt: `Professional Instagram post for ${brand.name}, ${brand.segment}, colors: ${brandColors}, clean modern design`,
+    }]
+  }
+
+  return result
 }
