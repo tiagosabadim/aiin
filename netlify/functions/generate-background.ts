@@ -33,16 +33,12 @@ interface GeneratedContent {
 
 // ---- Tamanho fixo por tipo ----
 function getImageSize(jobType: string): string {
+  // Todas as dimensões divisíveis por 16 (requisito da API)
   if (jobType === 'story' || jobType === 'story_sequencia' || jobType === 'capa_reels') {
-    return '1024x1536' // 9:16 vertical
+    return '864x1536' // 9:16 vertical — stories e reels
   }
-  if (jobType === 'post_simples' || jobType === 'post_premium') {
-    return '1080x1350' // 4:5 retrato — maior alcance no feed
-  }
-  if (jobType.includes('carrossel')) {
-    return '1080x1350' // carrossel também retrato
-  }
-  return '1080x1350' // padrão
+  // Feed e carrossel: proporção 4:5 (maior alcance no Instagram)
+  return '1024x1280' // 4:5 retrato — feed e carrossel
 }
 
 // ============================================================
