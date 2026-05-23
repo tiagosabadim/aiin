@@ -130,12 +130,26 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
     <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:48, gap:16, textAlign:'center' }}>
       <div style={{ width:60, height:60, borderRadius:'50%', background:'var(--brand-light)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:28 }}>✦</div>
       <h2 style={{ fontFamily:'var(--font-serif)', fontSize:24, color:'var(--text-1)' }}>Pedido enviado!</h2>
-      <p style={{ fontSize:14, color:'var(--text-2)', maxWidth:360, lineHeight:1.6 }}>
-        A IA está criando seu conteúdo com a identidade da <strong>{brand.name}</strong>. Você receberá os posts para aprovação em instantes.
+      <p style={{ fontSize:14, color:'var(--text-2)', maxWidth:380, lineHeight:1.6 }}>
+        A IA já começou a criar seu conteúdo. Acompanhe o progresso na página de aprovação — o post aparece automaticamente quando estiver pronto.
       </p>
-      <p style={{ fontSize:13, color:'var(--text-3)' }}>{totalCredits} crédito{totalCredits > 1 ? 's' : ''} debitado{totalCredits > 1 ? 's' : ''}. Restam {credits - totalCredits} créditos.</p>
+      <div style={{ background:'var(--brand-light)', border:'1px solid rgba(61,90,62,.2)', borderRadius:'var(--radius-lg)', padding:'12px 16px', maxWidth:380, width:'100%' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
+          <div style={{ width:16, height:16, borderRadius:'50%', border:'2px solid var(--brand)', borderTopColor:'transparent', animation:'spin 1s linear infinite', flexShrink:0 }} />
+          <span style={{ fontSize:13, fontWeight:500, color:'var(--brand-dark)' }}>Gerando agora</span>
+        </div>
+        <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+          {['GPT-4o criando copy e estrutura', 'gpt-image-2 gerando imagens', 'Salvando e notificando'].map((step, i) => (
+            <div key={step} style={{ display:'flex', alignItems:'center', gap:8, fontSize:12, color:'var(--brand-dark)', opacity:.8 }}>
+              <span style={{ fontSize:10 }}>→</span> {step}
+            </div>
+          ))}
+        </div>
+        <div style={{ fontSize:11, color:'var(--brand-dark)', opacity:.6, marginTop:8 }}>Tempo estimado: 30–60 segundos</div>
+      </div>
+      <p style={{ fontSize:12, color:'var(--text-3)' }}>{totalCredits} crédito{totalCredits > 1 ? 's' : ''} debitado{totalCredits > 1 ? 's' : ''}. Restam {credits - totalCredits} créditos.</p>
       <div style={{ display:'flex', gap:10 }}>
-        <button onClick={() => navigate('posts')} style={btnP}>Ver posts →</button>
+        <button onClick={() => navigate('posts')} style={btnP}>Ver posts em tempo real →</button>
         <button onClick={() => { setSuccess(false); setStep(1); setTitle('') }} style={btnS}>Novo pedido</button>
       </div>
     </div>
