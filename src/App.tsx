@@ -41,7 +41,7 @@ export default function App() {
       {route === 'dashboard'  && <DashboardPage {...ctx} />}
       {route === 'briefing'   && <BriefingPage  {...ctx} />}
       {route === 'posts'      && <PostsPage      workspaceId={workspace.id} userId={user.id} />}
-      {route === 'schedule'   && <SchedulePage />}
+      {route === 'schedule'   && <SchedulePage workspaceId={workspace.id} />}
       {route === 'assets'     && <AssetsPage     workspaceId={workspace.id} brandId={brand.id} />}
       {route === 'insights'   && <InsightsPage />}
       {route === 'design'     && <DesignSystemPage brand={brand} workspaceId={workspace.id} onSave={refetch} />}
