@@ -17,3 +17,6 @@
 # Publica posts agendados a cada 5 minutos
 [functions."publish-scheduled"]
   schedule = "*/5 * * * *"
+
+[functions."sync-insights"]
+  schedule = "0 9 * * *"

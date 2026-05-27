@@ -1,4 +1,10 @@
-import { useState } from 'react'
+// ============================================================
+//  aiin · BriefingPage v3
+//  Fluxo: Período → Mix → IA gera cronograma em texto
+//         → Usuário edita/adiciona refs → Aprova por post ou tudo
+//         → Jobs gerados em background
+// ============================================================
+import { useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { createContentJob } from '../lib/api'
 import type { Workspace, BrandProfile, Subscription, ContentType } from '../types/database'
@@ -11,302 +17,545 @@ interface Props {
   navigate: (r: string) => void
 }
 
-type Step = 1 | 2 | 3
+type Phase = 'plan' | 'schedule' | 'approve'
 
-const CONTENT_TYPES: { id: ContentType; label: string; desc: string; icon: string; credits: number }[] = [
-  { id:'post_simples',    label:'Post estático',      desc:'Imagem única no feed',       icon:'▣', credits:1 },
-  { id:'post_premium',   label:'Post premium',        desc:'Alta qualidade + direção',    icon:'◈', credits:2 },
-  { id:'carrossel_5',    label:'Carrossel 5 slides',  desc:'Narrativa progressiva',       icon:'◫', credits:3 },
-  { id:'carrossel_7',    label:'Carrossel 7 slides',  desc:'Conteúdo mais completo',      icon:'◫', credits:4 },
-  { id:'story',          label:'Story avulso',        desc:'Vertical 9:16',               icon:'▯', credits:1 },
-  { id:'story_sequencia',label:'Sequência stories',   desc:'3 stories conectados',        icon:'▯', credits:2 },
-  { id:'capa_reels',     label:'Capa de Reels',       desc:'Thumbnail vertical',          icon:'▶', credits:1 },
-  { id:'campanha',       label:'Arte promocional',    desc:'Promoção ou campanha',        icon:'🎯', credits:2 },
-  { id:'kit_campanha',   label:'Kit campanha',        desc:'Pack completo de peças',      icon:'📦', credits:6 },
-]
+interface ScheduleItem {
+  id: string
+  position: number
+  scheduled_date: string
+  content_type: ContentType
+  title: string
+  objective: string
+  extra_context: string
+  hashtags: string[]
+  reference_urls: string[]
+  reference_files: File[]
+  status: 'pending' | 'approved' | 'generating' | 'done'
+  editing: boolean
+}
 
-const TONES    = ['Descontraído','Profissional','Inspirador','Divertido','Luxuoso','Educativo']
-const OBJECTIVES = ['Gerar vendas','Aumentar seguidores','Engajamento','Lançamento','Reconhecimento','Informar/Educar']
+const TYPE_LABELS: Record<string, string> = {
+  post_simples: 'Post estático', post_premium: 'Post premium',
+  carrossel_5: 'Carrossel 5p', carrossel_7: 'Carrossel 7p',
+  story: 'Story', capa_reels: 'Capa Reels',
+}
+
+const PERIOD_DAYS: Record<string, number> = { semana: 7, quinzena: 14, mes: 30 }
+
+const WEEKDAYS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
 
 export function BriefingPage({ workspace, brand, subscription, credits, navigate }: Props) {
   const { user } = useAuth()
-  const [step, setStep]       = useState<Step>(1)
+  const [phase, setPhase] = useState<Phase>('plan')
   const [loading, setLoading] = useState(false)
-  const [success, setSuccess] = useState(false)
   const [error, setError]     = useState<string | null>(null)
 
-  const [contentType, setContentType] = useState<ContentType>('post_simples')
-  const [quantity, setQuantity]       = useState(1)
-  const [objective, setObjective]     = useState(OBJECTIVES[0])
-  const [tone, setTone]               = useState(brand.tone_of_voice ?? TONES[0])
-  const [hashtags, setHashtags]       = useState<string[]>([])
-  const [hashtagInput, setHashtagInput] = useState('')
-  const [extraContext, setExtraContext] = useState('')
-  const [title, setTitle]             = useState('')
+  // ---- FASE 1: Planejamento ----
+  const [period, setPeriod]         = useState<'semana'|'quinzena'|'mes'>('semana')
+  const [postsPerWeek, setPostsPerWeek] = useState(3)
+  const [startDate, setStartDate]   = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() + 1)
+    return d.toISOString().split('T')[0]
+  })
+  const [theme, setTheme]           = useState('')
+  const [staticCount, setStaticCount]   = useState(2)
+  const [carouselCount, setCarouselCount] = useState(1)
+  const [storyCount, setStoryCount]     = useState(0)
 
-  const selectedType  = CONTENT_TYPES.find(t => t.id === contentType)!
-  const totalCredits  = (CREDIT_COSTS[contentType] ?? 1) * quantity
-  const hasCredits    = credits >= totalCredits
+  // ---- FASE 2: Cronograma ----
+  const [campaignId, setCampaignId] = useState<string | null>(null)
+  const [items, setItems]           = useState<ScheduleItem[]>([])
+  const [approvingAll, setApprovingAll] = useState(false)
+  const [approvedCount, setApprovedCount] = useState(0)
 
-  const addHashtag = (e: React.KeyboardEvent) => {
-    if (e.key !== 'Enter') return
-    let val = hashtagInput.trim()
-    if (!val) return
-    if (!val.startsWith('#')) val = '#' + val
-    if (!hashtags.includes(val)) setHashtags(p => [...p, val])
-    setHashtagInput('')
-  }
+  const fileRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
-  const submit = async () => {
-    if (!user || !hasCredits) return
+  const totalPostsPlanned = Math.ceil(PERIOD_DAYS[period] / 7 * postsPerWeek)
+  const totalCredits = items.reduce((sum, i) => sum + (CREDIT_COSTS[i.content_type] ?? 1), 0)
+  const hasCredits = credits >= totalCredits
+
+  // Gera cronograma via GPT-4o
+  const generateSchedule = async () => {
+    if (!user) return
     setLoading(true); setError(null)
     try {
-      const { data: brief, error: bErr } = await supabase.from('content_briefs').insert({
-        workspace_id: workspace.id, brand_id: brand.id, created_by: user.id,
-        title: title || `${selectedType.label} — ${new Date().toLocaleDateString('pt-BR')}`,
-        objective, content_type: contentType, quantity, tone, hashtags,
-        extra_context: extraContext, required_credits: totalCredits, status: 'confirmed',
-      }).select().single()
-      if (bErr) throw bErr
+      const start = new Date(startDate)
+      const end   = new Date(start)
+      end.setDate(end.getDate() + PERIOD_DAYS[period] - 1)
 
-      await createContentJob({
-        workspaceId: workspace.id, briefId: brief.id,
-        brandId: brand.id, jobType: contentType, quantity,
-        inputPayload: {
-          title, objective, tone_of_voice: tone,
-          hashtags, quantity, content_type: contentType, extra_context: extraContext,
-          brand_name: brand.name, segment: brand.segment, city: brand.city,
-          target_audience: brand.target_audience, main_objective: brand.main_objective,
-          products: brand.products, color_palette: brand.color_palette,
-          slogans: brand.slogans, typography: brand.typography,
-          design_rules: brand.design_rules, forbidden_words: brand.forbidden_words,
-          instagram_handle: brand.instagram_handle, brand_dna: brand.ai_brand_dna,
-          logo_urls: brand.logo_urls,
-        },
+      // Cria campanha no banco
+      const { data: campaign, error: cErr } = await supabase
+        .from('content_campaigns')
+        .insert({
+          workspace_id: workspace.id, brand_id: brand.id, created_by: user.id,
+          title: theme || `Campanha ${period} — ${start.toLocaleDateString('pt-BR')}`,
+          period, start_date: start.toISOString().split('T')[0],
+          end_date: end.toISOString().split('T')[0],
+          posts_per_week: postsPerWeek, theme, status: 'draft',
+        }).select().single()
+      if (cErr) throw cErr
+      setCampaignId(campaign.id)
+
+      // Monta mix de formatos
+      const mix: ContentType[] = []
+      for (let i = 0; i < staticCount;  i++) mix.push('post_simples')
+      for (let i = 0; i < carouselCount; i++) mix.push('carrossel_5')
+      for (let i = 0; i < storyCount;    i++) mix.push('story')
+
+      // Chama GPT-4o para gerar cronograma
+      const prompt = buildSchedulePrompt(brand, period, postsPerWeek, mix, theme, start, end)
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_OPENAI_KEY ?? ''}` },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: 'Você é um estrategista de conteúdo para Instagram no Brasil. Responda sempre em JSON válido sem markdown.' },
+            { role: 'user', content: prompt },
+          ],
+        }),
       })
-      setSuccess(true)
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Erro ao criar pedido.')
+      const data = await res.json()
+      if (data.error) throw new Error(data.error.message)
+
+      const parsed = JSON.parse(data.choices[0].message.content)
+      const scheduleItems: ScheduleItem[] = parsed.items.map((item: any, idx: number) => ({
+        id: `item-${idx}`, position: idx + 1,
+        scheduled_date: item.date,
+        content_type: item.format as ContentType,
+        title: item.title,
+        objective: item.objective ?? '',
+        extra_context: item.context ?? '',
+        hashtags: item.hashtags ?? [],
+        reference_urls: [], reference_files: [],
+        status: 'pending', editing: false,
+      }))
+
+      // Salva itens no banco
+      await supabase.from('campaign_items').insert(
+        scheduleItems.map(it => ({
+          campaign_id: campaign.id, workspace_id: workspace.id,
+          brand_id: brand.id, position: it.position,
+          scheduled_date: it.scheduled_date, content_type: it.content_type,
+          title: it.title, objective: it.objective,
+          extra_context: it.extra_context, hashtags: it.hashtags,
+          required_credits: CREDIT_COSTS[it.content_type] ?? 1,
+        }))
+      )
+
+      setItems(scheduleItems)
+      setPhase('schedule')
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Erro ao gerar cronograma')
     } finally { setLoading(false) }
   }
 
-  if (success) return (
-    <div className="page" style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:'60vh', gap:20, textAlign:'center' }}>
-      <div style={{ width:64, height:64, borderRadius:'50%', background:'var(--gradient-soft)', border:'1px solid rgba(247,37,133,.2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:28 }}>✦</div>
-      <div>
-        <h2 style={{ fontSize:22, fontWeight:600, color:'var(--text-1)', marginBottom:6 }}>Pedido enviado!</h2>
-        <p style={{ fontSize:14, color:'var(--text-3)', maxWidth:380, lineHeight:1.6 }}>
-          A IA já começou. Acompanhe em tempo real na página de aprovação.
-        </p>
-      </div>
-      <div className="card-gradient" style={{ maxWidth:400, width:'100%', textAlign:'left' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
-          <div style={{ width:16, height:16, borderRadius:'50%', border:'2px solid var(--accent-pink)', borderTopColor:'transparent' }} className="spin" />
-          <span style={{ fontSize:13, fontWeight:500, color:'var(--text-1)' }}>Gerando agora</span>
-        </div>
-        {['GPT-4o criando copy e estrutura','gpt-image-2 gerando imagens','Salvando e notificando'].map(s => (
-          <div key={s} style={{ display:'flex', alignItems:'center', gap:8, fontSize:12, color:'var(--text-3)', marginBottom:4 }}>
-            <span style={{ color:'var(--accent-pink)' }}>→</span> {s}
-          </div>
-        ))}
-        <div style={{ fontSize:11, color:'var(--text-4)', marginTop:8 }}>Tempo estimado: 30–60s</div>
-      </div>
-      <p style={{ fontSize:12, color:'var(--text-4)' }}>{totalCredits} crédito{totalCredits > 1 ? 's' : ''} debitado{totalCredits > 1 ? 's' : ''}. Restam {credits - totalCredits}.</p>
-      <div style={{ display:'flex', gap:10 }}>
-        <button className="btn btn-primary" onClick={() => navigate('posts')}>Ver em tempo real →</button>
-        <button className="btn btn-ghost" onClick={() => { setSuccess(false); setStep(1); setTitle('') }}>Novo pedido</button>
-      </div>
-    </div>
-  )
+  // Aprova um item e dispara geração
+  const approveItem = async (itemId: string) => {
+    const item = items.find(i => i.id === itemId)
+    if (!item || !campaignId || !user) return
+
+    setItems(prev => prev.map(i => i.id === itemId ? { ...i, status: 'generating' } : i))
+
+    try {
+      // Upload das referências do item
+      const refUrls: string[] = [...item.reference_urls]
+      for (const file of item.reference_files) {
+        const path = `${workspace.id}/refs/${Date.now()}_${file.name}`
+        const { error } = await supabase.storage.from('assets').upload(path, file, { upsert: true })
+        if (!error) {
+          const { data: urlData } = supabase.storage.from('assets').getPublicUrl(path)
+          refUrls.push(urlData.publicUrl)
+        }
+      }
+
+      // Cria brief
+      const { data: brief } = await supabase.from('content_briefs').insert({
+        workspace_id: workspace.id, brand_id: brand.id, created_by: user.id,
+        title: item.title, objective: item.objective,
+        content_type: item.content_type, quantity: 1,
+        extra_context: item.extra_context, hashtags: item.hashtags,
+        required_credits: CREDIT_COSTS[item.content_type] ?? 1, status: 'confirmed',
+      }).select().single()
+
+      if (!brief) throw new Error('Falha ao criar briefing')
+
+      // Dispara geração
+      const job = await createContentJob({
+        workspaceId: workspace.id, briefId: brief.id,
+        brandId: brand.id, jobType: item.content_type, quantity: 1,
+        inputPayload: {
+          title: item.title, objective: item.objective,
+          tone_of_voice: brand.tone_of_voice, extra_context: item.extra_context,
+          hashtags: item.hashtags, reference_urls: refUrls,
+          brand_name: brand.name, segment: brand.segment,
+          target_audience: brand.target_audience, products: brand.products,
+          color_palette: brand.color_palette, slogans: brand.slogans,
+          design_rules: brand.design_rules, forbidden_words: brand.forbidden_words,
+          brand_dna: brand.ai_brand_dna, logo_urls: brand.logo_urls,
+          quantity: 1, content_type: item.content_type,
+        },
+      })
+
+      // Atualiza item no banco
+      await supabase.from('campaign_items')
+        .update({ status: 'approved', job_id: job.id })
+        .eq('campaign_id', campaignId).eq('position', item.position)
+
+      setItems(prev => prev.map(i => i.id === itemId ? { ...i, status: 'done' } : i))
+      setApprovedCount(c => c + 1)
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Erro')
+      setItems(prev => prev.map(i => i.id === itemId ? { ...i, status: 'pending' } : i))
+    }
+  }
+
+  // Aprova tudo de uma vez
+  const approveAll = async () => {
+    setApprovingAll(true)
+    const pending = items.filter(i => i.status === 'pending')
+    for (const item of pending) {
+      await approveItem(item.id)
+    }
+    setApprovingAll(false)
+  }
+
+  // Adiciona referência de imagem a um item
+  const addReference = async (itemId: string, file: File) => {
+    setItems(prev => prev.map(i => i.id === itemId
+      ? { ...i, reference_files: [...i.reference_files, file] }
+      : i
+    ))
+  }
+
+  const totalDone = items.filter(i => i.status === 'done' || i.status === 'generating').length
 
   return (
-    <div className="page" style={{ maxWidth:660, margin:'0 auto', width:'100%' }}>
-      <div style={{ marginBottom:24 }}>
-        <h1 className="page-title">Novo pedido</h1>
-        <p className="page-sub">A IA vai criar com a identidade da <strong style={{ color:'var(--text-1)' }}>{brand.name}</strong></p>
+    <div className="page" style={{ maxWidth: 760, margin: '0 auto', width: '100%' }}>
+
+      {/* Header */}
+      <div style={{ marginBottom: 28 }}>
+        <h1 className="page-title">Planejar conteúdo</h1>
+        <p className="page-sub">
+          {phase === 'plan' && 'Defina o período e o mix de conteúdo. A IA gera o cronograma antes de gastar qualquer crédito.'}
+          {phase === 'schedule' && `${items.length} posts planejados · ${totalCredits} créditos total · Edite, adicione referências e aprove.`}
+        </p>
       </div>
 
-      {/* Brand DNA badge */}
-      <div className="card-gradient" style={{ display:'flex', alignItems:'center', gap:10, marginBottom:24, padding:'10px 14px' }}>
-        <span style={{ background:'var(--gradient)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', fontSize:16 }}>✦</span>
-        <div style={{ flex:1 }}>
-          <div style={{ fontSize:12, fontWeight:500, color:'var(--text-1)' }}>Brand DNA ativo</div>
-          <div style={{ fontSize:11, color:'var(--text-3)' }}>Cores, tom, slogan e regras aplicados automaticamente</div>
-        </div>
-        <span style={{ fontSize:11, color:'var(--text-2)', background:'var(--surface)', padding:'2px 8px', borderRadius:99, border:'1px solid var(--border-md)', whiteSpace:'nowrap' }}>
-          {brand.ai_context_pct}% contexto
-        </span>
-      </div>
+      {/* ── FASE 1: Planejamento ── */}
+      {phase === 'plan' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-      {/* Steps */}
-      <div style={{ display:'flex', alignItems:'center', marginBottom:24, gap:0 }}>
-        {(['Formato','Detalhes','Revisar'] as const).map((label, i) => {
-          const n = (i+1) as Step; const active = step === n; const done = step > n
-          return (
-            <div key={label} style={{ display:'flex', alignItems:'center', flex: i < 2 ? 1 : 'none' }}>
-              <div onClick={() => done && setStep(n)} style={{ display:'flex', alignItems:'center', gap:6, cursor: done ? 'pointer' : 'default' }}>
-                <div style={{ width:24, height:24, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:600, flexShrink:0, transition:'all .2s',
-                  background: done || active ? 'var(--gradient)' : 'var(--surface-3)',
-                  color: done || active ? 'white' : 'var(--text-4)',
-                  boxShadow: active ? '0 0 0 3px rgba(247,37,133,.15)' : 'none',
-                }}>{done ? '✓' : n}</div>
-                <span style={{ fontSize:12, color: active ? 'var(--text-1)' : done ? 'var(--accent-pink)' : 'var(--text-4)', fontWeight: active ? 500 : 400, whiteSpace:'nowrap' }}>{label}</span>
-              </div>
-              {i < 2 && <div style={{ flex:1, height:1, background: done ? 'var(--gradient)' : 'var(--border)', margin:'0 10px', transition:'background .3s' }} />}
-            </div>
-          )
-        })}
-      </div>
-
-      {/* STEP 1 */}
-      {step === 1 && (
-        <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-          <div>
-            <label className="label">Tipo de conteúdo</label>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8 }}>
-              {CONTENT_TYPES.map(ct => (
-                <button key={ct.id} onClick={() => setContentType(ct.id)} style={{
-                  padding:'11px 10px', border:`1px solid ${contentType === ct.id ? 'rgba(247,37,133,.4)' : 'var(--border-md)'}`,
-                  borderRadius:'var(--radius-lg)', background: contentType === ct.id ? 'var(--gradient-soft)' : 'var(--surface)',
-                  cursor:'pointer', textAlign:'center', transition:'all .15s', fontFamily:'var(--font-sans)',
+          {/* Período */}
+          <div className="card">
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 14 }}>Qual período?</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+              {([
+                ['semana',   '1 semana',   '3–5 posts'],
+                ['quinzena', '2 semanas',  '6–10 posts'],
+                ['mes',      '1 mês',      '12–20 posts'],
+              ] as const).map(([val, label, sub]) => (
+                <button key={val} onClick={() => setPeriod(val)} style={{
+                  padding: '14px 12px', border: `1.5px solid ${period === val ? 'var(--accent-pink)' : 'var(--border)'}`,
+                  borderRadius: 'var(--radius-lg)', background: period === val ? 'var(--gradient-soft)' : 'var(--surface)',
+                  cursor: 'pointer', fontFamily: 'var(--font-sans)', transition: 'all .15s', textAlign: 'center',
                 }}>
-                  <div style={{ fontSize:20, marginBottom:4 }}>{ct.icon}</div>
-                  <div style={{ fontSize:12, fontWeight: contentType === ct.id ? 600 : 400, color: contentType === ct.id ? 'var(--text-1)' : 'var(--text-2)' }}>{ct.label}</div>
-                  <div style={{ fontSize:10, color:'var(--text-4)', marginTop:2 }}>{ct.credits} crédito{ct.credits > 1 ? 's' : ''}</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: period === val ? 'var(--text-1)' : 'var(--text-2)', marginBottom: 3 }}>{label}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-4)' }}>{sub}</div>
                 </button>
               ))}
             </div>
           </div>
 
-          <div>
-            <label className="label">Quantidade</label>
-            <div style={{ display:'flex', gap:6 }}>
-              {[1,2,3,4,5].map(n => (
-                <button key={n} onClick={() => setQuantity(n)} style={{
-                  width:42, height:42, borderRadius:'var(--radius-md)',
-                  border:`1px solid ${quantity === n ? 'rgba(247,37,133,.4)' : 'var(--border-md)'}`,
-                  background: quantity === n ? 'var(--gradient-soft)' : 'var(--surface)',
-                  color: quantity === n ? 'var(--text-1)' : 'var(--text-3)',
-                  fontSize:14, fontWeight: quantity === n ? 600 : 400,
-                  fontFamily:'var(--font-sans)', cursor:'pointer', transition:'all .15s',
-                }}>{n}</button>
-              ))}
+          {/* Data de início + frequência */}
+          <div className="card">
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 14 }}>Quando começa?</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div>
+                <label className="label">Data de início</label>
+                <input type="date" className="input" value={startDate} onChange={e => setStartDate(e.target.value)} />
+              </div>
+              <div>
+                <label className="label">Posts por semana</label>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {[2,3,4,5,7].map(n => (
+                    <button key={n} onClick={() => setPostsPerWeek(n)} style={{
+                      flex: 1, height: 40, border: `1.5px solid ${postsPerWeek === n ? 'var(--accent-pink)' : 'var(--border)'}`,
+                      borderRadius: 'var(--radius-md)', background: postsPerWeek === n ? 'var(--gradient-soft)' : 'transparent',
+                      color: postsPerWeek === n ? 'var(--text-1)' : 'var(--text-3)',
+                      fontSize: 13, fontWeight: postsPerWeek === n ? 700 : 400,
+                      fontFamily: 'var(--font-sans)', cursor: 'pointer',
+                    }}>{n}</button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Resumo créditos */}
-          <div style={{ padding:'10px 14px', borderRadius:'var(--radius-md)', background: hasCredits ? 'var(--surface-2)' : 'var(--red-light)', border:`1px solid ${hasCredits ? 'var(--border)' : 'rgba(226,75,74,.2)'}`, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-            <span style={{ fontSize:13, color: hasCredits ? 'var(--text-2)' : 'var(--red)' }}>
-              {quantity}× {selectedType.label} = <strong style={{ color: hasCredits ? 'var(--text-1)' : 'var(--red)' }}>{totalCredits} créditos</strong>
-            </span>
-            <span style={{ fontSize:12, color: hasCredits ? 'var(--text-4)' : 'var(--red)' }}>
-              {hasCredits ? `${credits} disponíveis` : `Insuficiente (${credits})`}
-            </span>
+          {/* Mix de formatos */}
+          <div className="card">
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 14 }}>Mix de formatos</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {[
+                { label: 'Posts estáticos', sub: '1 crédito cada', color: 'var(--accent-purple)', val: staticCount, set: setStaticCount },
+                { label: 'Carrosseis 5p',   sub: '3 créditos cada', color: 'var(--accent-pink)',   val: carouselCount, set: setCarouselCount },
+                { label: 'Stories avulsos', sub: '1 crédito cada', color: 'var(--accent-orange)', val: storyCount, set: setStoryCount },
+              ].map(row => (
+                <div key={row.label} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-1)' }}>{row.label}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-4)' }}>{row.sub}</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <button onClick={() => row.set(Math.max(0, row.val - 1))} style={{ width: 28, height: 28, borderRadius: 'var(--radius-md)', border: '1px solid var(--border-md)', background: 'transparent', color: 'var(--text-2)', fontSize: 16, cursor: 'pointer', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                    <div style={{ width: 28, textAlign: 'center', fontSize: 15, fontWeight: 700, color: row.color }}>{row.val}</div>
+                    <button onClick={() => row.set(row.val + 1)} style={{ width: 28, height: 28, borderRadius: 'var(--radius-md)', border: '1px solid var(--border-md)', background: 'transparent', color: 'var(--text-2)', fontSize: 16, cursor: 'pointer', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                  </div>
+                </div>
+              ))}
+
+              {/* Resumo */}
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{staticCount + carouselCount + storyCount} posts por ciclo · {(staticCount + storyCount) + carouselCount * 3} créditos estimados</span>
+                {!hasCredits && <span style={{ fontSize: 11, color: 'var(--red)', fontWeight: 500 }}>⚠ Créditos insuficientes ({credits} disponíveis)</span>}
+              </div>
+            </div>
           </div>
 
-          <div style={{ display:'flex', justifyContent:'flex-end' }}>
-            <button className="btn btn-primary" onClick={() => setStep(2)} disabled={!hasCredits}>Próximo →</button>
+          {/* Tema geral */}
+          <div className="card">
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 10 }}>Tema geral (opcional)</div>
+            <input className="input" value={theme} onChange={e => setTheme(e.target.value)}
+              placeholder="ex: coleção inverno, promoção de aniversário, conteúdo educativo..." />
+            <div style={{ fontSize: 11, color: 'var(--text-4)', marginTop: 5 }}>A IA vai criar títulos e temas para cada post baseado nisso.</div>
           </div>
+
+          {error && <div style={{ padding: '10px 14px', background: 'var(--red-light)', border: '1px solid rgba(226,75,74,.2)', borderRadius: 'var(--radius-md)', fontSize: 13, color: 'var(--red)' }}>{error}</div>}
+
+          <button className="btn btn-primary btn-lg" style={{ width: '100%', justifyContent: 'center' }} onClick={generateSchedule} disabled={loading || staticCount + carouselCount + storyCount === 0}>
+            {loading
+              ? <><span className="spin" style={{ width: 16, height: 16, border: '2.5px solid rgba(255,255,255,.3)', borderTopColor: 'white', borderRadius: '50%', display: 'inline-block' }} /> Gerando cronograma...</>
+              : '✦ Gerar cronograma'}
+          </button>
         </div>
       )}
 
-      {/* STEP 2 */}
-      {step === 2 && (
-        <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-          <div>
-            <label className="label">Tema do post *</label>
-            <input className="input" value={title} onChange={e => setTitle(e.target.value)}
-              placeholder="ex: Promoção de dia das mães, lançamento do novo produto, dicas de cuidados..." />
-            <div style={{ fontSize:11, color:'var(--text-4)', marginTop:4 }}>O tema guia toda a criação — quanto mais específico, melhor o resultado.</div>
-          </div>
+      {/* ── FASE 2: Cronograma ── */}
+      {phase === 'schedule' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+          {/* Barra de ação */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', position: 'sticky', top: 0, zIndex: 10 }}>
             <div>
-              <label className="label">Objetivo</label>
-              <select className="input" value={objective} onChange={e => setObjective(e.target.value)}>
-                {OBJECTIVES.map(o => <option key={o}>{o}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="label">Tom de voz</label>
-              <select className="input" value={tone} onChange={e => setTone(e.target.value)}>
-                {TONES.map(t => <option key={t}>{t}</option>)}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="label">Hashtags extras</label>
-            <input className="input" value={hashtagInput} onChange={e => setHashtagInput(e.target.value)}
-              onKeyDown={addHashtag} placeholder="Digite e pressione Enter" />
-            {hashtags.length > 0 && (
-              <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginTop:8 }}>
-                {hashtags.map(h => (
-                  <span key={h} style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'3px 10px', background:'var(--gradient-soft)', border:'1px solid rgba(247,37,133,.15)', color:'var(--text-1)', borderRadius:99, fontSize:12 }}>
-                    {h}
-                    <button onClick={() => setHashtags(p => p.filter(x => x !== h))} style={{ background:'none', border:'none', color:'var(--text-3)', cursor:'pointer', fontSize:14, lineHeight:1, padding:0 }}>×</button>
-                  </span>
-                ))}
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>
+                {totalDone > 0 ? `${totalDone} de ${items.length} gerando...` : `${items.length} posts prontos para revisão`}
               </div>
-            )}
+              <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{totalCredits} créditos · {credits} disponíveis</div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-ghost btn-sm" onClick={() => setPhase('plan')}>← Rever plano</button>
+              <button className="btn btn-primary" onClick={approveAll} disabled={approvingAll || !hasCredits || items.every(i => i.status !== 'pending')}>
+                {approvingAll
+                  ? <><span className="spin" style={{ width: 13, height: 13, border: '2px solid rgba(255,255,255,.3)', borderTopColor: 'white', borderRadius: '50%', display: 'inline-block' }} /> Gerando tudo...</>
+                  : `✦ Aprovar tudo · ${totalCredits} créditos`}
+              </button>
+            </div>
           </div>
 
+          {/* Lista de itens */}
+          {items.map((item, idx) => (
+            <ScheduleItemCard
+              key={item.id}
+              item={item}
+              idx={idx}
+              onApprove={() => approveItem(item.id)}
+              onUpdate={(patch) => setItems(prev => prev.map(i => i.id === item.id ? { ...i, ...patch } : i))}
+              onAddRef={(file) => addReference(item.id, file)}
+              fileRef={(el) => { fileRefs.current[item.id] = el }}
+            />
+          ))}
+
+          {totalDone > 0 && (
+            <div className="card-gradient" style={{ textAlign: 'center', padding: '14px' }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', marginBottom: 4 }}>
+                {totalDone} post{totalDone > 1 ? 's' : ''} sendo gerado{totalDone > 1 ? 's' : ''} ✦
+              </div>
+              <button className="btn btn-ghost btn-sm" onClick={() => navigate('posts')}>Ver em tempo real →</button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ---- Card de item do cronograma ----
+interface ItemCardProps {
+  item: ScheduleItem; idx: number
+  onApprove: () => void
+  onUpdate: (patch: Partial<ScheduleItem>) => void
+  onAddRef: (file: File) => void
+  fileRef: (el: HTMLInputElement | null) => void
+}
+
+function ScheduleItemCard({ item, idx, onApprove, onUpdate, onAddRef, fileRef }: ItemCardProps) {
+  const date = new Date(item.scheduled_date + 'T12:00:00')
+  const weekday = WEEKDAYS[date.getDay()]
+  const dateStr = date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+  const credits = CREDIT_COSTS[item.content_type] ?? 1
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  const statusConfig = {
+    pending:    { label: 'Aguardando', color: 'var(--text-4)',    bg: 'var(--surface-3)' },
+    approved:   { label: 'Aprovado',   color: 'var(--success)',   bg: 'var(--success-light)' },
+    generating: { label: 'Gerando...', color: 'var(--accent-pink)', bg: 'var(--gradient-soft)' },
+    done:       { label: 'Gerado ✓',   color: 'var(--success)',   bg: 'var(--success-light)' },
+  }
+  const st = statusConfig[item.status]
+
+  return (
+    <div style={{ background: 'var(--surface)', border: `1px solid ${item.status === 'generating' ? 'rgba(247,37,133,.3)' : 'var(--border)'}`, borderRadius: 'var(--radius-xl)', overflow: 'hidden', transition: 'all .2s' }}>
+
+      {/* Header do card */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: item.editing ? '1px solid var(--border)' : 'none' }}>
+
+        {/* Data */}
+        <div style={{ width: 44, textAlign: 'center', flexShrink: 0 }}>
+          <div style={{ fontSize: 10, color: 'var(--text-4)', textTransform: 'uppercase', letterSpacing: '.05em' }}>{weekday}</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-1)', lineHeight: 1.2 }}>{dateStr.split(' ')[0]}</div>
+          <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{dateStr.split(' ')[1]}</div>
+        </div>
+
+        <div style={{ width: 1, height: 36, background: 'var(--border)', flexShrink: 0 }} />
+
+        {/* Formato badge */}
+        <div style={{ padding: '3px 9px', borderRadius: 99, fontSize: 10, fontWeight: 600, background: 'var(--gradient-soft)', border: '1px solid rgba(247,37,133,.15)', color: 'var(--text-1)', flexShrink: 0, whiteSpace: 'nowrap' }}>
+          {TYPE_LABELS[item.content_type] ?? item.content_type}
+        </div>
+
+        {/* Título */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</div>
+          {item.extra_context && <div style={{ fontSize: 11, color: 'var(--text-4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.extra_context}</div>}
+        </div>
+
+        {/* Status + ações */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          <span style={{ fontSize: 10, padding: '3px 9px', borderRadius: 99, background: st.bg, color: st.color, fontWeight: 500, whiteSpace: 'nowrap' }}>{st.label}</span>
+          <span style={{ fontSize: 11, color: 'var(--text-4)' }}>{credits} cr.</span>
+
+          {item.status === 'pending' && (
+            <>
+              <button className="btn btn-ghost btn-sm" onClick={() => onUpdate({ editing: !item.editing })}>
+                {item.editing ? 'Fechar' : '✎ Editar'}
+              </button>
+              <button className="btn btn-primary btn-sm" onClick={onApprove}>
+                ✓ Aprovar
+              </button>
+            </>
+          )}
+          {item.status === 'generating' && (
+            <span className="spin" style={{ width: 14, height: 14, border: '2px solid rgba(247,37,133,.3)', borderTopColor: 'var(--accent-pink)', borderRadius: '50%', display: 'inline-block', flexShrink: 0 }} />
+          )}
+          {item.status === 'done' && (
+            <button className="btn btn-ghost btn-sm" onClick={() => navigate('posts')}>Ver →</button>
+          )}
+        </div>
+      </div>
+
+      {/* Painel de edição expandível */}
+      {item.editing && (
+        <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12, background: 'var(--surface-2)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label className="label">Tema do post</label>
+              <input className="input" value={item.title} onChange={e => onUpdate({ title: e.target.value })} />
+            </div>
+            <div>
+              <label className="label">Data</label>
+              <input type="date" className="input" value={item.scheduled_date} onChange={e => onUpdate({ scheduled_date: e.target.value })} />
+            </div>
+          </div>
+          <div>
+            <label className="label">Formato</label>
+            <select className="input" value={item.content_type} onChange={e => onUpdate({ content_type: e.target.value as ContentType })}>
+              {Object.entries(TYPE_LABELS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </div>
           <div>
             <label className="label">Contexto extra para a IA</label>
-            <textarea className="input" value={extraContext} onChange={e => setExtraContext(e.target.value)}
-              rows={3} style={{ resize:'vertical' }}
-              placeholder="ex: destacar promoção 30% off, usar tom mais emotivo, mencionar entrega grátis..." />
+            <textarea className="input" value={item.extra_context} onChange={e => onUpdate({ extra_context: e.target.value })}
+              rows={2} style={{ resize: 'vertical' }} placeholder="ex: usar foto do produto novo, destacar promoção, tom mais emotivo..." />
           </div>
 
-          <div style={{ display:'flex', gap:10, justifyContent:'space-between' }}>
-            <button className="btn btn-ghost" onClick={() => setStep(1)}>← Voltar</button>
-            <button className="btn btn-primary" onClick={() => setStep(3)} disabled={!title.trim()}>Próximo →</button>
-          </div>
-        </div>
-      )}
-
-      {/* STEP 3 */}
-      {step === 3 && (
-        <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-          <div className="card" style={{ padding:0, overflow:'hidden' }}>
-            {[
-              ['Tipo',       selectedType.label],
-              ['Tema',       title || '—'],
-              ['Quantidade', `${quantity} post${quantity > 1 ? 's' : ''}`],
-              ['Objetivo',   objective],
-              ['Tom',        tone],
-              ['Créditos',   `${totalCredits} créditos`],
-              ['Hashtags',   hashtags.join(' ') || 'padrão da marca'],
-            ].map(([k,v], i, arr) => (
-              <div key={k} style={{ display:'flex', padding:'11px 16px', borderBottom: i < arr.length-1 ? '1px solid var(--border)' : 'none' }}>
-                <span style={{ fontSize:12, color:'var(--text-3)', minWidth:90, fontWeight:500 }}>{k}</span>
-                <span style={{ fontSize:13, color:'var(--text-1)', flex:1 }}>{v}</span>
-                <button onClick={() => setStep(i < 2 ? 1 : 2)} style={{ background:'none', border:'none', color:'var(--accent-pink)', cursor:'pointer', fontSize:12, fontFamily:'var(--font-sans)' }}>editar</button>
-              </div>
-            ))}
-          </div>
-
-          {extraContext && (
-            <div style={{ padding:'10px 14px', background:'var(--surface-2)', borderRadius:'var(--radius-md)', fontSize:12, color:'var(--text-2)', border:'1px solid var(--border)' }}>
-              <strong>Contexto:</strong> {extraContext}
+          {/* Upload de referência */}
+          <div>
+            <label className="label">Imagem de referência para este post</label>
+            <input ref={el => { fileInputRef.current = el; fileRef(el) }} type="file" accept="image/*" multiple style={{ display: 'none' }}
+              onChange={e => Array.from(e.target.files ?? []).forEach(f => onAddRef(f))} />
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <button className="btn btn-ghost btn-sm" onClick={() => fileInputRef.current?.click()}>
+                + Adicionar foto
+              </button>
+              {item.reference_files.map((f, i) => (
+                <div key={i} style={{ position: 'relative' }}>
+                  <img src={URL.createObjectURL(f)} alt="" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)' }} />
+                  <button onClick={() => onUpdate({ reference_files: item.reference_files.filter((_,j) => j !== i) })}
+                    style={{ position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: '50%', background: 'var(--red)', border: 'none', color: 'white', fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                </div>
+              ))}
             </div>
-          )}
-
-          {error && (
-            <div style={{ padding:'10px 14px', background:'var(--red-light)', border:'1px solid rgba(226,75,74,.2)', borderRadius:'var(--radius-md)', fontSize:13, color:'var(--red)' }}>{error}</div>
-          )}
-
-          <div style={{ display:'flex', gap:10, justifyContent:'space-between', marginTop:4 }}>
-            <button className="btn btn-ghost" onClick={() => setStep(2)}>← Voltar</button>
-            <button className="btn btn-primary" onClick={submit} disabled={loading} style={{ opacity: loading ? .7 : 1 }}>
-              {loading
-                ? <><span className="spin" style={{ width:14, height:14, border:'2px solid rgba(255,255,255,.3)', borderTopColor:'white', borderRadius:'50%', display:'inline-block' }} /> Enviando...</>
-                : `✦ Criar ${quantity} post${quantity > 1 ? 's' : ''} · ${totalCredits} créditos`
-              }
-            </button>
           </div>
         </div>
       )}
     </div>
   )
 }
+
+// ---- Prompt para geração do cronograma ----
+function buildSchedulePrompt(
+  brand: BrandProfile, period: string, postsPerWeek: number,
+  mix: ContentType[], theme: string, start: Date, end: Date
+): string {
+  const formatMix = mix.reduce((acc: Record<string,number>, t) => { acc[t] = (acc[t]??0)+1; return acc }, {})
+  const mixStr = Object.entries(formatMix).map(([k,v]) => `${v}× ${TYPE_LABELS[k]??k}`).join(', ')
+
+  return `Você é um estrategista de conteúdo para Instagram no Brasil.
+
+BRAND DNA:
+${brand.ai_brand_dna ?? ''}
+
+MARCA: ${brand.name}
+Segmento: ${brand.segment}
+Público: ${brand.target_audience}
+Tom de voz: ${brand.tone_of_voice}
+Produtos/Serviços: ${brand.products}
+
+PLANEJAMENTO SOLICITADO:
+- Período: ${period} (${start.toLocaleDateString('pt-BR')} até ${end.toLocaleDateString('pt-BR')})
+- ${postsPerWeek} posts por semana
+- Mix de formatos: ${mixStr}
+- Tema geral: ${theme || 'nenhum — use criatividade baseada na marca'}
+
+Crie um cronograma de posts estratégico e variado, com temas relevantes para a marca.
+Distribua os posts de forma inteligente ao longo do período (evite fins de semana para posts promocionais).
+Cada post deve ter um tema claro, objetivo e hashtags específicas.
+
+Retorne SOMENTE este JSON válido:
+{
+  "items": [
+    {
+      "date": "YYYY-MM-DD",
+      "format": "post_simples|carrossel_5|story|capa_reels",
+      "title": "tema criativo e específico do post em português",
+      "objective": "objetivo do post (engajamento, vendas, etc)",
+      "context": "contexto adicional para a IA na hora de criar a arte",
+      "hashtags": ["#tag1", "#tag2", "#tag3"]
+    }
+  ]
+}`
+}
+
+// ---- Importações que faltam ----
+function navigate(to: string) { window.location.hash = to }

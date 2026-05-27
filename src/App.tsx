@@ -10,6 +10,7 @@ import { PostsPage } from './pages/PostsPage'
 import { SchedulePage } from './pages/SchedulePage'
 import { AssetsPage } from './pages/AssetsPage'
 import { InsightsPage, DesignSystemPage, SettingsPage } from './pages/OtherPages'
+import { VisualContextPage } from './pages/VisualContextPage'
 import './index.css'
 
 export type Route = 'dashboard' | 'briefing' | 'posts' | 'schedule' | 'assets' | 'insights' | 'design' | 'settings'
@@ -28,10 +29,13 @@ export default function App() {
 
   if (authLoading || wsLoading) return <SplashScreen />
   if (!user) return <LoginPage />
-
-  // Onboarding obrigatório se não tiver workspace ou marca
   if (!workspace || !brand || !brand.onboarding_completed) {
     return <OnboardingPage onComplete={refetch} />
+  }
+
+  // Validação visual obrigatória após onboarding
+  if (brand.onboarding_completed && !(brand as any).visual_context_approved) {
+    return <VisualContextPage workspace={workspace} brand={brand} onApprove={refetch} />
   }
 
   const ctx = { workspace, brand, subscription, credits, navigate }
@@ -41,9 +45,9 @@ export default function App() {
       {route === 'dashboard'  && <DashboardPage {...ctx} />}
       {route === 'briefing'   && <BriefingPage  {...ctx} />}
       {route === 'posts'      && <PostsPage      workspaceId={workspace.id} userId={user.id} />}
-      {route === 'schedule'   && <SchedulePage workspaceId={workspace.id} />}
+      {route === 'schedule'   && <SchedulePage   workspaceId={workspace.id} />}
       {route === 'assets'     && <AssetsPage     workspaceId={workspace.id} brandId={brand.id} />}
-      {route === 'insights'   && <InsightsPage />}
+      {route === 'insights'   && <InsightsPage workspaceId={workspace.id} brand={brand} />}
       {route === 'design'     && <DesignSystemPage brand={brand} workspaceId={workspace.id} onSave={refetch} />}
       {route === 'settings'   && <SettingsPage   workspace={workspace} brand={brand} />}
     </AppLayout>
@@ -52,16 +56,13 @@ export default function App() {
 
 function SplashScreen() {
   return (
-    <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'var(--bg)', flexDirection:'column', gap:16 }}>
-      <div style={{ width:48, height:48, borderRadius:12, background:'var(--brand)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-        <span style={{ color:'white', fontSize:22 }}>★</span>
-      </div>
+    <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'var(--bg)', flexDirection:'column', gap:20 }}>
+      <div style={{ width:52, height:52, borderRadius:16, background:'var(--gradient)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, color:'white', boxShadow:'0 8px 24px rgba(247,37,133,.3)' }}>★</div>
       <div style={{ display:'flex', gap:6 }}>
         {[0,1,2].map(i => (
-          <div key={i} style={{ width:6, height:6, borderRadius:'50%', background:'var(--brand)', opacity:.4, animation:`pulse 1.2s ease-in-out ${i*.2}s infinite` }} />
+          <div key={i} style={{ width:6, height:6, borderRadius:'50%', background:'var(--accent-pink)', animation:`pulse 1.2s ease-in-out ${i*.2}s infinite` }} />
         ))}
       </div>
-      <style>{`@keyframes pulse{0%,100%{opacity:.4;transform:scale(1)}50%{opacity:1;transform:scale(1.3)}}`}</style>
     </div>
   )
 }
