@@ -5,17 +5,13 @@ import type { BrandAsset, AssetCategory } from '../types/database'
 interface Props { workspaceId: string; brandId: string }
 
 const CATS: { id: AssetCategory | 'todas'; label: string }[] = [
-  { id:'todas',     label:'Todas'     },
-  { id:'pessoa',    label:'Pessoas'   },
-  { id:'produto',   label:'Produtos'  },
-  { id:'empresa',   label:'Empresa'   },
-  { id:'campanha',  label:'Campanhas' },
-  { id:'identidade',label:'Identidade'},
+  { id:'todas',     label:'Todas'      },
+  { id:'pessoa',    label:'Pessoas'    },
+  { id:'produto',   label:'Produtos'   },
+  { id:'empresa',   label:'Empresa'    },
+  { id:'campanha',  label:'Campanhas'  },
+  { id:'identidade',label:'Identidade' },
 ]
-
-const CAT_BG: Record<string, string> = {
-  pessoa:'#FBEAF0', produto:'#E1F5EE', empresa:'#EEEDFE', campanha:'#FAEEDA', identidade:'#E6F1FB'
-}
 
 export function AssetsPage({ workspaceId, brandId }: Props) {
   const [assets, setAssets]       = useState<BrandAsset[]>([])
@@ -52,14 +48,13 @@ export function AssetsPage({ workspaceId, brandId }: Props) {
       const localUrl = URL.createObjectURL(file)
       const category = cat === 'todas' ? 'produto' : cat
       const tempId = Date.now().toString() + Math.random()
-      const tempAsset: BrandAsset = {
+      setAssets(prev => [{
         id: tempId, workspace_id: workspaceId, brand_id: brandId,
         name: file.name.replace(/\.[^.]+$/, ''), storage_path: '',
         public_url: localUrl, asset_type: 'foto_produto', category,
         tags: ['novo'], ai_analyzed: false, performance_score: 0, times_used: 0,
         created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
-      }
-      setAssets(prev => [tempAsset, ...prev])
+      }, ...prev])
       try {
         const path = `${workspaceId}/assets/${Date.now()}_${file.name}`
         const { error } = await supabase.storage.from('assets').upload(path, file, { upsert: true })
@@ -68,8 +63,7 @@ export function AssetsPage({ workspaceId, brandId }: Props) {
           const { data: inserted } = await supabase.from('brand_assets').insert({
             workspace_id: workspaceId, brand_id: brandId,
             name: file.name.replace(/\.[^.]+$/, ''), storage_path: path,
-            public_url: urlData.publicUrl, asset_type: 'foto_produto', category,
-            tags: ['novo'],
+            public_url: urlData.publicUrl, asset_type: 'foto_produto', category, tags: ['novo'],
           }).select().single()
           if (inserted) setAssets(prev => prev.map(a => a.id === tempId ? inserted : a))
         }
@@ -81,18 +75,11 @@ export function AssetsPage({ workspaceId, brandId }: Props) {
 
   const deleteAsset = async (id: string) => {
     const asset = assets.find(a => a.id === id)
-    if (asset?.storage_path) {
-      await supabase.storage.from('assets').remove([asset.storage_path])
-    }
+    if (asset?.storage_path) await supabase.storage.from('assets').remove([asset.storage_path])
     await supabase.from('brand_assets').delete().eq('id', id)
     setAssets(prev => prev.filter(a => a.id !== id))
     setSelected(prev => { const n = new Set(prev); n.delete(id); return n })
     setConfirmDeleteId(null)
-  }
-
-  const deleteSelected = async () => {
-    for (const id of selected) await deleteAsset(id)
-    setSelected(new Set())
   }
 
   const saveRename = async (id: string) => {
@@ -112,105 +99,112 @@ export function AssetsPage({ workspaceId, brandId }: Props) {
   assets.forEach(a => { if (a.category) counts[a.category] = (counts[a.category] ?? 0) + 1 })
 
   return (
-    <div style={{ padding:'28px 32px' }}>
-      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:24 }}>
+    <div className="page">
+      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:24, flexWrap:'wrap', gap:12 }}>
         <div>
-          <h1 style={{ fontFamily:'var(--font-serif)', fontSize:26, color:'var(--text-1)', marginBottom:4 }}>Acervo visual</h1>
-          <p style={{ fontSize:14, color:'var(--text-2)' }}>{assets.length} imagens · usadas pela IA para criar posts com identidade da marca</p>
+          <h1 className="page-title">Acervo visual</h1>
+          <p className="page-sub">{assets.length} imagens · usadas pela IA para criar posts com identidade da marca</p>
         </div>
         <div style={{ display:'flex', gap:8 }}>
           <input ref={fileRef} type="file" multiple accept="image/*,.svg" style={{ display:'none' }} onChange={handleUpload} />
-          <button onClick={() => fileRef.current?.click()} disabled={uploading} style={btnS}>{uploading ? 'Enviando...' : '↑ Upload'}</button>
-          {selected.size > 0 && <button style={btnP}>✦ Usar em post ({selected.size})</button>}
+          <button className="btn btn-ghost btn-sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
+            {uploading ? 'Enviando...' : '↑ Upload'}
+          </button>
+          {selected.size > 0 && (
+            <button className="btn btn-primary btn-sm">✦ Usar em post ({selected.size})</button>
+          )}
         </div>
       </div>
 
       {/* Filtros */}
-      <div style={{ display:'flex', gap:6, marginBottom:16, flexWrap:'wrap' }}>
+      <div className="filter-row">
         {CATS.map(c => (
-          <button key={c.id} onClick={() => setCat(c.id)} style={{
-            display:'flex', alignItems:'center', gap:5, padding:'6px 14px', borderRadius:99,
-            border:`1px solid ${cat === c.id ? 'var(--brand)' : 'var(--border-md)'}`,
-            background: cat === c.id ? 'var(--brand-light)' : 'transparent',
-            color: cat === c.id ? 'var(--brand-dark)' : 'var(--text-2)',
-            fontSize:13, fontFamily:'var(--font-sans)', cursor:'pointer', fontWeight: cat === c.id ? 500 : 400,
-          }}>
+          <button key={c.id} onClick={() => setCat(c.id)} className={`filter-btn ${cat===c.id?'active':''}`}>
             {c.label}
-            <span style={{ background: cat === c.id ? 'var(--brand)' : 'var(--surface-2)', color: cat === c.id ? 'white' : 'var(--text-3)', fontSize:10, padding:'1px 6px', borderRadius:99 }}>
-              {counts[c.id] ?? 0}
-            </span>
+            <span className="filter-count">{counts[c.id] ?? 0}</span>
           </button>
         ))}
       </div>
 
-      {/* Barra seleção */}
+      {/* Barra seleção múltipla */}
       {selected.size > 0 && (
-        <div style={{ background:'var(--brand)', borderRadius:'var(--radius-md)', padding:'9px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
-          <span style={{ fontSize:13, color:'white' }}>{selected.size} selecionada{selected.size > 1 ? 's' : ''}</span>
+        <div style={{ background:'var(--gradient)', borderRadius:'var(--radius-md)', padding:'10px 16px', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
+          <span style={{ fontSize:13, color:'white', fontWeight:500 }}>{selected.size} selecionada{selected.size>1?'s':''}</span>
           <div style={{ display:'flex', gap:8 }}>
-            <button style={selBtn}>✦ Criar post</button>
-            <button onClick={deleteSelected} style={{ ...selBtn, background:'rgba(220,50,50,.25)', borderColor:'rgba(255,100,100,.4)' }}>🗑 Deletar</button>
-            <button onClick={() => setSelected(new Set())} style={selBtn}>✕</button>
+            <button style={{ padding:'4px 12px', borderRadius:'var(--radius-md)', border:'1px solid rgba(255,255,255,.3)', background:'transparent', color:'white', fontSize:12, fontFamily:'var(--font-sans)', cursor:'pointer' }}>✦ Criar post</button>
+            <button onClick={() => { selected.forEach(id => deleteAsset(id)); setSelected(new Set()) }}
+              style={{ padding:'4px 12px', borderRadius:'var(--radius-md)', border:'1px solid rgba(255,255,255,.3)', background:'rgba(255,255,255,.15)', color:'white', fontSize:12, fontFamily:'var(--font-sans)', cursor:'pointer' }}>🗑 Deletar</button>
+            <button onClick={() => setSelected(new Set())} style={{ padding:'4px 12px', borderRadius:'var(--radius-md)', border:'1px solid rgba(255,255,255,.3)', background:'transparent', color:'white', fontSize:12, fontFamily:'var(--font-sans)', cursor:'pointer' }}>✕</button>
           </div>
         </div>
       )}
 
       {loading ? (
-        <div style={{ textAlign:'center', padding:48, color:'var(--text-3)', fontSize:14 }}>Carregando acervo...</div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(180px,1fr))', gap:12 }}>
+          {[1,2,3,4,5,6].map(i => (
+            <div key={i} className="card" style={{ padding:0, overflow:'hidden' }}>
+              <div className="shimmer" style={{ height:130, borderRadius:0 }} />
+              <div style={{ padding:'10px 12px', display:'flex', flexDirection:'column', gap:6 }}>
+                <div className="shimmer" style={{ height:10, width:'80%' }} />
+                <div className="shimmer" style={{ height:8, width:'50%' }} />
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(190px, 1fr))', gap:12 }}>
-          {/* Upload button */}
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(180px,1fr))', gap:12 }}>
+          {/* Upload btn */}
           <div onClick={() => fileRef.current?.click()} style={{
-            border:'1px dashed var(--border-md)', borderRadius:'var(--radius-lg)',
+            border:'1px dashed var(--border-md)', borderRadius:'var(--radius-xl)',
             display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
-            gap:6, minHeight:190, cursor:'pointer', color:'var(--text-3)', fontSize:13, transition:'all .15s',
+            gap:6, minHeight:190, cursor:'pointer', color:'var(--text-4)', fontSize:13, transition:'all .15s',
           }}
-            onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor='var(--brand)'; (e.currentTarget as HTMLDivElement).style.color='var(--brand)' }}
-            onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor='var(--border-md)'; (e.currentTarget as HTMLDivElement).style.color='var(--text-3)' }}>
-            <span style={{ fontSize:28 }}>+</span>
+            onMouseEnter={e => { const d = e.currentTarget as HTMLDivElement; d.style.borderColor='rgba(247,37,133,.4)'; d.style.color='var(--accent-pink)'; d.style.background='var(--gradient-soft)' }}
+            onMouseLeave={e => { const d = e.currentTarget as HTMLDivElement; d.style.borderColor='var(--border-md)'; d.style.color='var(--text-4)'; d.style.background='transparent' }}>
+            <span style={{ fontSize:28, opacity:.5 }}>+</span>
             <span>Adicionar imagem</span>
           </div>
 
           {filtered.map(asset => {
             const isSel = selected.has(asset.id)
             return (
-              <div key={asset.id} style={{ border:`${isSel ? 2 : 1}px solid ${isSel ? 'var(--brand)' : 'var(--border)'}`, borderRadius:'var(--radius-lg)', overflow:'visible', background:'var(--surface)', position:'relative', boxShadow: isSel ? '0 0 0 3px var(--brand-light)' : 'var(--shadow-sm)' }}>
-                <div onClick={() => toggleSel(asset.id)} style={{ height:130, background: CAT_BG[asset.category ?? 'produto'] ?? 'var(--surface-2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:32, overflow:'hidden', borderRadius:'var(--radius-lg) var(--radius-lg) 0 0', cursor:'pointer' }}>
+              <div key={asset.id} style={{ border:`${isSel?2:1}px solid ${isSel?'rgba(247,37,133,.5)':'var(--border)'}`, borderRadius:'var(--radius-xl)', overflow:'visible', background:'var(--surface)', position:'relative', boxShadow: isSel ? '0 0 0 3px rgba(247,37,133,.1)' : 'var(--shadow-sm)', transition:'all .15s' }}>
+                <div onClick={() => toggleSel(asset.id)} style={{ height:130, background:'var(--surface-2)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', borderRadius:'var(--radius-xl) var(--radius-xl) 0 0', cursor:'pointer' }}>
                   {asset.public_url
-                    ? <img src={asset.public_url} alt={asset.name} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
-                    : '🖼'}
+                    ? <img src={asset.public_url} alt={asset.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                    : <span style={{ fontSize:28, opacity:.3 }}>🖼</span>
+                  }
                 </div>
-                {isSel && <div style={{ position:'absolute', top:8, right:8, width:20, height:20, borderRadius:'50%', background:'var(--brand)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, color:'white', pointerEvents:'none' }}>✓</div>}
-                {asset.performance_score > 0 && <div style={{ position:'absolute', top:8, left:8, background:'rgba(0,0,0,.55)', color:'white', fontSize:10, padding:'1px 6px', borderRadius:99 }}>✦ {asset.performance_score.toFixed(1)}</div>}
+                {isSel && <div style={{ position:'absolute', top:8, right:8, width:22, height:22, borderRadius:'50%', background:'var(--gradient)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, color:'white' }}>✓</div>}
+                {asset.performance_score > 0 && <div className="badge badge-gradient" style={{ position:'absolute', top:8, left:8, fontSize:9 }}>✦ {asset.performance_score.toFixed(1)}</div>}
 
-                <div style={{ padding:'9px 10px 6px' }}>
+                <div style={{ padding:'9px 10px 8px' }}>
                   {renaming === asset.id ? (
                     <div style={{ display:'flex', gap:4 }}>
                       <input value={renameVal} onChange={e => setRenameVal(e.target.value)} onKeyDown={e => e.key==='Enter' && saveRename(asset.id)} autoFocus
-                        style={{ flex:1, padding:'3px 7px', border:'1px solid var(--brand)', borderRadius:'var(--radius-md)', fontSize:12, fontFamily:'var(--font-sans)', outline:'none' }} />
-                      <button onClick={() => saveRename(asset.id)} style={{ ...iconBtn, background:'var(--brand)', color:'white', border:'none' }}>✓</button>
-                      <button onClick={() => setRenaming(null)} style={iconBtn}>✕</button>
+                        className="input" style={{ flex:1, fontSize:11, padding:'4px 8px' }} />
+                      <button className="icon-btn" style={{ background:'var(--gradient)', color:'white', border:'none', width:24, height:24 }} onClick={() => saveRename(asset.id)}>✓</button>
                     </div>
                   ) : (
-                    <div style={{ fontSize:12, fontWeight:500, color:'var(--text-1)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{asset.name}</div>
+                    <div className="truncate" style={{ fontSize:12, fontWeight:500, color:'var(--text-1)' }}>{asset.name}</div>
                   )}
-                  <div style={{ fontSize:10, color:'var(--text-3)', marginTop:2 }}>{asset.times_used > 0 ? `${asset.times_used} usos` : 'Não usado'}</div>
+                  <div style={{ fontSize:10, color:'var(--text-4)', marginTop:2 }}>{asset.times_used > 0 ? `${asset.times_used} usos` : 'Não usado'}</div>
                   <div style={{ display:'flex', gap:3, marginTop:4, flexWrap:'wrap' }}>
                     {asset.tags?.slice(0,2).map(t => (
-                      <span key={t} style={{ fontSize:9, padding:'1px 6px', borderRadius:99, background:'var(--brand-light)', color:'var(--brand-dark)' }}>{t}</span>
+                      <span key={t} style={{ fontSize:9, padding:'1px 6px', borderRadius:99, background:'var(--gradient-soft)', border:'1px solid rgba(247,37,133,.12)', color:'var(--text-2)' }}>{t}</span>
                     ))}
                   </div>
                 </div>
 
-                {/* Ações */}
                 <div style={{ display:'flex', gap:4, padding:'0 10px 10px', justifyContent:'flex-end' }}>
-                  <button title="Renomear" onClick={() => { setRenaming(asset.id); setRenameVal(asset.name) }} style={iconBtn}>✎</button>
+                  <button className="icon-btn" title="Renomear" onClick={() => { setRenaming(asset.id); setRenameVal(asset.name) }}>✎</button>
                   <div style={{ position:'relative' }}>
-                    <button title="Mover" onClick={() => setMovingId(movingId === asset.id ? null : asset.id)} style={iconBtn}>⇄</button>
+                    <button className="icon-btn" title="Mover" onClick={() => setMovingId(movingId===asset.id?null:asset.id)}>⇄</button>
                     {movingId === asset.id && (
-                      <div style={{ position:'absolute', bottom:'100%', right:0, background:'var(--surface)', border:'1px solid var(--border-md)', borderRadius:'var(--radius-md)', padding:'4px', zIndex:10, minWidth:130, boxShadow:'var(--shadow-md)' }}>
+                      <div style={{ position:'absolute', bottom:'100%', right:0, background:'var(--surface)', border:'1px solid var(--border-md)', borderRadius:'var(--radius-lg)', padding:'4px', zIndex:10, minWidth:140, boxShadow:'var(--shadow-lg)' }}>
                         {CATS.filter(c => c.id !== 'todas' && c.id !== asset.category).map(c => (
-                          <button key={c.id} onClick={() => moveAsset(asset.id, c.id as AssetCategory)} style={{ display:'block', width:'100%', textAlign:'left', padding:'6px 10px', border:'none', background:'transparent', fontSize:12, color:'var(--text-1)', fontFamily:'var(--font-sans)', cursor:'pointer', borderRadius:'var(--radius-md)' }}
+                          <button key={c.id} onClick={() => moveAsset(asset.id, c.id as AssetCategory)}
+                            style={{ display:'block', width:'100%', textAlign:'left', padding:'7px 10px', border:'none', background:'transparent', fontSize:12, color:'var(--text-1)', fontFamily:'var(--font-sans)', cursor:'pointer', borderRadius:'var(--radius-md)' }}
                             onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background='var(--surface-2)'}
                             onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background='transparent'}>
                             → {c.label}
@@ -220,13 +214,13 @@ export function AssetsPage({ workspaceId, brandId }: Props) {
                     )}
                   </div>
                   <div style={{ position:'relative' }}>
-                    <button title="Deletar" onClick={() => setConfirmDeleteId(confirmDeleteId === asset.id ? null : asset.id)} style={{ ...iconBtn, color:'var(--red)' }}>🗑</button>
+                    <button className="icon-btn danger" title="Deletar" onClick={() => setConfirmDeleteId(confirmDeleteId===asset.id?null:asset.id)}>🗑</button>
                     {confirmDeleteId === asset.id && (
-                      <div style={{ position:'absolute', bottom:'100%', right:0, background:'var(--surface)', border:'1px solid rgba(192,57,43,.3)', borderRadius:'var(--radius-md)', padding:'10px 12px', zIndex:10, minWidth:160, boxShadow:'var(--shadow-md)' }}>
+                      <div style={{ position:'absolute', bottom:'100%', right:0, background:'var(--surface)', border:'1px solid rgba(226,75,74,.25)', borderRadius:'var(--radius-lg)', padding:'12px', zIndex:10, minWidth:170, boxShadow:'var(--shadow-lg)' }}>
                         <div style={{ fontSize:12, color:'var(--text-1)', marginBottom:8 }}>Deletar esta imagem?</div>
                         <div style={{ display:'flex', gap:6 }}>
-                          <button onClick={() => deleteAsset(asset.id)} style={{ flex:1, padding:'5px', background:'var(--red)', color:'white', border:'none', borderRadius:'var(--radius-md)', fontSize:12, fontFamily:'var(--font-sans)', cursor:'pointer' }}>Deletar</button>
-                          <button onClick={() => setConfirmDeleteId(null)} style={{ flex:1, padding:'5px', background:'transparent', color:'var(--text-2)', border:'1px solid var(--border-md)', borderRadius:'var(--radius-md)', fontSize:12, fontFamily:'var(--font-sans)', cursor:'pointer' }}>Cancelar</button>
+                          <button className="btn btn-danger btn-sm" style={{ flex:1 }} onClick={() => deleteAsset(asset.id)}>Deletar</button>
+                          <button className="btn btn-ghost btn-sm" style={{ flex:1 }} onClick={() => setConfirmDeleteId(null)}>Cancelar</button>
                         </div>
                       </div>
                     )}
@@ -240,8 +234,3 @@ export function AssetsPage({ workspaceId, brandId }: Props) {
     </div>
   )
 }
-
-const btnP: React.CSSProperties = { background:'var(--brand)', color:'white', border:'none', borderRadius:'var(--radius-md)', padding:'9px 18px', fontSize:13, fontWeight:500, fontFamily:'var(--font-sans)', cursor:'pointer' }
-const btnS: React.CSSProperties = { background:'transparent', color:'var(--text-2)', border:'1px solid var(--border-md)', borderRadius:'var(--radius-md)', padding:'9px 16px', fontSize:13, fontFamily:'var(--font-sans)', cursor:'pointer' }
-const selBtn: React.CSSProperties = { padding:'4px 12px', borderRadius:'var(--radius-md)', border:'1px solid rgba(255,255,255,.3)', background:'transparent', color:'white', fontSize:12, fontFamily:'var(--font-sans)', cursor:'pointer' }
-const iconBtn: React.CSSProperties = { width:26, height:26, borderRadius:'var(--radius-md)', border:'1px solid var(--border-md)', background:'transparent', color:'var(--text-2)', fontSize:11, cursor:'pointer', display:'inline-flex', alignItems:'center', justifyContent:'center', fontFamily:'var(--font-sans)', flexShrink:0 }

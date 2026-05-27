@@ -10,130 +10,157 @@ interface Props {
 }
 
 export function DashboardPage({ workspace, brand, subscription, credits, navigate }: Props) {
-  const totalCredits = (subscription?.monthly_credits_available ?? 0) + (subscription?.extra_credits_available ?? 0)
-  const maxCredits = 50 // estimado do plano
+  const maxCredits = 50
+  const creditPct  = Math.min((credits / maxCredits) * 100, 100)
+
+  const QUICK_ACTIONS = [
+    { label:'Post estático',   sub:'1 crédito',  icon:'▣', type:'post_simples'  },
+    { label:'Carrossel 5p',    sub:'3 créditos', icon:'◫', type:'carrossel_5'   },
+    { label:'Story',           sub:'1 crédito',  icon:'▯', type:'story'          },
+    { label:'Capa de Reels',   sub:'1 crédito',  icon:'▶', type:'capa_reels'     },
+  ]
 
   return (
-    <div style={{ padding:'28px 32px', flex:1 }}>
+    <div className="page">
 
       {/* Header */}
-      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:28 }}>
+      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:28, flexWrap:'wrap', gap:12 }}>
         <div>
-          <h1 style={{ fontFamily:'var(--font-serif)', fontSize:26, color:'var(--text-1)', marginBottom:4 }}>
+          <h1 className="page-title">
             Olá! 👋
           </h1>
-          <p style={{ fontSize:14, color:'var(--text-2)' }}>
-            Bem-vindo de volta ao <strong>{brand.name}</strong>.
+          <p className="page-sub">
+            Bem-vindo de volta ao <strong style={{ color:'var(--text-1)' }}>{brand.name}</strong>
           </p>
         </div>
-        <button onClick={() => navigate('briefing')} style={btnP}>+ Novo pedido</button>
+        <button className="btn btn-primary" onClick={() => navigate('briefing')}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M12 5v14M5 12h14" strokeLinecap="round"/></svg>
+          Novo pedido
+        </button>
       </div>
 
       {/* Stats */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:24 }}>
         {[
-          { label:'Créditos disponíveis', value: String(credits),     sub: `de ${maxCredits} do plano`,      color:'var(--brand)'  },
-          { label:'Posts pendentes',      value:'0',                   sub:'aguardando aprovação',            color:'var(--amber)'  },
-          { label:'Posts publicados',     value:'0',                   sub:'este mês',                        color:'var(--text-2)' },
-          { label:'Contexto da marca',    value:`${brand.ai_context_pct}%`, sub:'Brand DNA completo',         color:'var(--brand)'  },
+          { label:'Créditos',         value: String(credits),          sub:`de ${maxCredits} do plano`,  color:'var(--accent-purple)', pct: creditPct },
+          { label:'Pendentes',        value:'0',                       sub:'aguardando aprovação',       color:'var(--accent-pink)',   pct: null },
+          { label:'Publicados',       value:'0',                       sub:'este mês',                   color:'var(--success)',       pct: null },
+          { label:'Contexto da marca',value:`${brand.ai_context_pct}%`,sub:'Brand DNA completo',         color:'var(--accent-orange)', pct: brand.ai_context_pct },
         ].map(s => (
-          <div key={s.label} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--radius-lg)', padding:'14px 16px' }}>
-            <div style={{ fontSize:11, color:'var(--text-3)', marginBottom:6 }}>{s.label}</div>
-            <div style={{ fontSize:26, fontWeight:500, color:s.color, lineHeight:1 }}>{s.value}</div>
-            <div style={{ fontSize:11, color:'var(--text-3)', marginTop:5 }}>{s.sub}</div>
+          <div key={s.label} className="card" style={{ padding:'16px' }}>
+            <div style={{ fontSize:11, color:'var(--text-3)', marginBottom:6, fontWeight:500, textTransform:'uppercase', letterSpacing:'.04em' }}>{s.label}</div>
+            <div style={{ fontSize:28, fontWeight:700, color:s.color, lineHeight:1, letterSpacing:'-.5px' }}>{s.value}</div>
+            <div style={{ fontSize:11, color:'var(--text-3)', marginTop:6 }}>{s.sub}</div>
+            {s.pct !== null && (
+              <div style={{ height:2, background:'var(--border)', borderRadius:99, overflow:'hidden', marginTop:8 }}>
+                <div style={{ height:'100%', width:`${s.pct}%`, background:s.color, borderRadius:99, transition:'width .4s' }} />
+              </div>
+            )}
           </div>
         ))}
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 300px', gap:16 }}>
+      {/* Mobile: stats em 2 colunas */}
+      <style>{`@media(max-width:640px){ .stats-grid{grid-template-columns:1fr 1fr!important} }`}</style>
 
-        {/* Brand DNA Card */}
-        <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--radius-lg)', padding:'18px 20px' }}>
-          <div style={{ fontSize:13, fontWeight:500, color:'var(--text-1)', marginBottom:14 }}>✦ Brand DNA — {brand.name}</div>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 320px', gap:16, alignItems:'start' }}>
+
+        {/* Brand DNA */}
+        <div className="card">
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
+            <div style={{ fontSize:13, fontWeight:600, color:'var(--text-1)', display:'flex', alignItems:'center', gap:7 }}>
+              <span style={{ background:'var(--gradient)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>✦</span>
+              Brand DNA — {brand.name}
+            </div>
+            <span style={{ fontSize:11, padding:'3px 10px', borderRadius:99, background:'var(--gradient-soft)', color:'var(--text-1)', fontWeight:500, border:'1px solid rgba(247,37,133,.15)' }}>
+              {brand.ai_context_pct}% contexto
+            </span>
+          </div>
 
           {brand.ai_brand_dna ? (
-            <div>
-              <div style={{ fontSize:12, color:'var(--text-2)', lineHeight:1.7, background:'var(--surface-2)', borderRadius:'var(--radius-md)', padding:'12px 14px', marginBottom:12, maxHeight:180, overflowY:'auto' }}>
+            <>
+              <div style={{ fontSize:12, color:'var(--text-2)', lineHeight:1.7, background:'var(--surface-2)', borderRadius:var_or('var(--radius-lg)'), padding:'12px 14px', marginBottom:14, maxHeight:160, overflowY:'auto' }}>
                 {brand.ai_brand_dna}
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
                 {[
-                  { label:'Segmento',   value: brand.segment        ?? '—' },
-                  { label:'Tom de voz', value: brand.tone_of_voice  ?? '—' },
-                  { label:'Público',    value: brand.target_audience ?? '—' },
-                  { label:'Objetivo',   value: brand.main_objective  ?? '—' },
-                ].map(item => (
-                  <div key={item.label} style={{ background:'var(--surface-2)', borderRadius:'var(--radius-md)', padding:'8px 10px' }}>
-                    <div style={{ fontSize:10, color:'var(--text-3)', marginBottom:2 }}>{item.label}</div>
-                    <div style={{ fontSize:12, color:'var(--text-1)', fontWeight:500, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{item.value}</div>
+                  ['Segmento',   brand.segment         ?? '—'],
+                  ['Tom de voz', brand.tone_of_voice   ?? '—'],
+                  ['Público',    brand.target_audience ?? '—'],
+                  ['Objetivo',   brand.main_objective  ?? '—'],
+                ].map(([k, v]) => (
+                  <div key={k} style={{ background:'var(--surface-2)', borderRadius:'var(--radius-md)', padding:'8px 10px' }}>
+                    <div style={{ fontSize:10, color:'var(--text-3)', marginBottom:2, fontWeight:500, textTransform:'uppercase', letterSpacing:'.04em' }}>{k}</div>
+                    <div style={{ fontSize:12, color:'var(--text-1)', fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{v}</div>
                   </div>
                 ))}
               </div>
-            </div>
+              {brand.color_palette?.length > 0 && (
+                <div style={{ marginTop:12, display:'flex', gap:6, alignItems:'center' }}>
+                  <span style={{ fontSize:11, color:'var(--text-3)' }}>Cores:</span>
+                  {(brand.color_palette as any[]).map((c: any) => (
+                    <div key={c.hex} title={`${c.name} ${c.hex}`} style={{ width:18, height:18, borderRadius:'50%', background:c.hex, border:'1.5px solid var(--border-md)', flexShrink:0 }} />
+                  ))}
+                </div>
+              )}
+            </>
           ) : (
-            <div style={{ textAlign:'center', padding:'24px 0', color:'var(--text-3)' }}>
-              <div style={{ fontSize:24, marginBottom:8 }}>✦</div>
-              <div style={{ fontSize:13 }}>Brand DNA ainda não gerado</div>
-              <button onClick={() => navigate('design')} style={{ ...btnS, marginTop:10 }}>Completar perfil →</button>
-            </div>
-          )}
-
-          {/* Cores */}
-          {brand.color_palette?.length > 0 && (
-            <div style={{ marginTop:14, display:'flex', gap:6, alignItems:'center' }}>
-              <span style={{ fontSize:11, color:'var(--text-3)' }}>Cores:</span>
-              {brand.color_palette.map((c: { hex: string; name: string }) => (
-                <div key={c.hex} title={c.name} style={{ width:20, height:20, borderRadius:'50%', background:c.hex, border:'1px solid var(--border)', flexShrink:0 }} />
-              ))}
+            <div style={{ textAlign:'center', padding:'28px 0' }}>
+              <div style={{ fontSize:28, marginBottom:8, opacity:.4 }}>✦</div>
+              <div style={{ fontSize:13, color:'var(--text-3)', marginBottom:12 }}>Brand DNA não gerado ainda</div>
+              <button className="btn btn-secondary btn-sm" onClick={() => navigate('design')}>Completar perfil →</button>
             </div>
           )}
         </div>
 
-        {/* Ações rápidas */}
-        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-          <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--radius-lg)', padding:'14px 16px' }}>
-            <div style={{ fontSize:13, fontWeight:500, color:'var(--text-1)', marginBottom:10 }}>Criar conteúdo</div>
-            {[
-              { label:'Post estático (1 crédito)',       route:'briefing' as Route, highlight:true  },
-              { label:'Carrossel até 5p (3 créditos)',   route:'briefing' as Route, highlight:false },
-              { label:'Story avulso (1 crédito)',        route:'briefing' as Route, highlight:false },
-              { label:'Capa de Reels (1 crédito)',       route:'briefing' as Route, highlight:false },
-            ].map(item => (
-              <button key={item.label} onClick={() => navigate(item.route)} style={{
-                display:'flex', alignItems:'center', justifyContent:'space-between',
-                width:'100%', padding:'8px 10px', marginBottom:4,
-                background: item.highlight ? 'var(--brand-light)' : 'var(--surface-2)',
-                border:'none', borderRadius:'var(--radius-md)',
-                color: item.highlight ? 'var(--brand-dark)' : 'var(--text-2)',
-                fontSize:12, fontWeight: item.highlight ? 500 : 400,
-                fontFamily:'var(--font-sans)', cursor:'pointer', textAlign:'left',
-              }}>
-                {item.label} <span>→</span>
-              </button>
-            ))}
+        {/* Sidebar direita */}
+        <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+
+          {/* Ações rápidas */}
+          <div className="card-sm">
+            <div style={{ fontSize:13, fontWeight:600, color:'var(--text-1)', marginBottom:10 }}>Criar agora</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+              {QUICK_ACTIONS.map(a => (
+                <button key={a.type} onClick={() => navigate('briefing')} style={{
+                  display:'flex', alignItems:'center', gap:10, padding:'9px 10px',
+                  background:'var(--surface-2)', border:'1px solid var(--border)',
+                  borderRadius:'var(--radius-md)', cursor:'pointer', fontFamily:'var(--font-sans)',
+                  transition:'all .15s', textAlign:'left',
+                }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(247,37,133,.3)'; (e.currentTarget as HTMLButtonElement).style.background = 'var(--gradient-soft)' }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface-2)' }}>
+                  <span style={{ fontSize:18 }}>{a.icon}</span>
+                  <span style={{ flex:1, fontSize:13, color:'var(--text-1)', fontWeight:500 }}>{a.label}</span>
+                  <span style={{ fontSize:11, color:'var(--text-3)' }}>{a.sub}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Créditos */}
-          <div style={{ background:'var(--brand-light)', border:'1px solid rgba(61,90,62,.15)', borderRadius:'var(--radius-lg)', padding:'14px 16px' }}>
-            <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8 }}>
-              <span style={{ fontSize:13, fontWeight:500, color:'var(--brand-dark)' }}>Créditos</span>
-              <span style={{ fontSize:13, fontWeight:500, color:'var(--brand-dark)' }}>{credits}</span>
+          <div className="card-gradient">
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+              <span style={{ fontSize:13, fontWeight:600, color:'var(--text-1)' }}>Créditos</span>
+              <span style={{ fontSize:20, fontWeight:700, color:'var(--text-1)' }}>{credits}</span>
             </div>
-            <div style={{ height:5, background:'rgba(61,90,62,.15)', borderRadius:99, overflow:'hidden', marginBottom:8 }}>
-              <div style={{ height:'100%', width:`${Math.min((credits/maxCredits)*100,100)}%`, background:'var(--brand)', borderRadius:99 }} />
+            <div style={{ height:4, background:'rgba(255,255,255,.2)', borderRadius:99, overflow:'hidden', marginBottom:8 }}>
+              <div style={{ height:'100%', width:`${creditPct}%`, background:'var(--gradient)', borderRadius:99, transition:'width .4s' }} />
             </div>
-            <div style={{ fontSize:11, color:'var(--brand-dark)', opacity:.75 }}>
-              {subscription ? `Plano ativo até ${new Date(subscription.current_period_end).toLocaleDateString('pt-BR')}` : 'Sem plano ativo'}
+            <div style={{ fontSize:11, color:'var(--text-3)', marginBottom:10 }}>
+              {subscription
+                ? `Plano ativo até ${new Date(subscription.current_period_end).toLocaleDateString('pt-BR')}`
+                : 'Sem plano ativo'}
             </div>
-            <button onClick={() => navigate('settings')} style={{ marginTop:8, background:'none', border:'1px solid rgba(61,90,62,.3)', borderRadius:'var(--radius-md)', padding:'5px 12px', fontSize:12, color:'var(--brand-dark)', fontFamily:'var(--font-sans)', cursor:'pointer' }}>
+            <button className="btn btn-ghost btn-sm" onClick={() => navigate('settings')} style={{ width:'100%', justifyContent:'center' }}>
               Comprar créditos →
             </button>
           </div>
+
         </div>
       </div>
     </div>
   )
 }
 
-const btnP: React.CSSProperties = { background:'var(--brand)', color:'white', border:'none', borderRadius:'var(--radius-md)', padding:'9px 18px', fontSize:13, fontWeight:500, fontFamily:'var(--font-sans)', cursor:'pointer' }
-const btnS: React.CSSProperties = { background:'transparent', color:'var(--text-2)', border:'1px solid var(--border-md)', borderRadius:'var(--radius-md)', padding:'7px 14px', fontSize:12, fontFamily:'var(--font-sans)', cursor:'pointer' }
+// helper pq TypeScript inline nao aceita var()
+function var_or(v: string) { return v }
