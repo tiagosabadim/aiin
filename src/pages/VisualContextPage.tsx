@@ -1,10 +1,9 @@
 // ============================================================
-//  aiin · VisualContextPage
-//  Valida o contexto visual da marca pós-onboarding.
-//  Gera 1 arte teste, usuário aprova ou pede ajuste.
-//  Só depois libera o fluxo de conteúdo.
+//  aiin · VisualContextPage v2
+//  Usa Background Function + polling no Supabase.
+//  Fluxo: dispara geração → aguarda polling → exibe imagem
 // ============================================================
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import type { BrandProfile, Workspace } from '../types/database'
 
@@ -17,17 +16,30 @@ interface Props {
 type Status = 'idle' | 'generating' | 'reviewing' | 'adjusting' | 'approved'
 
 export function VisualContextPage({ workspace, brand, onApprove }: Props) {
-  const [status, setStatus]     = useState<Status>('idle')
-  const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [status, setStatus]         = useState<Status>('idle')
+  const [imageUrl, setImageUrl]     = useState<string | null>(null)
   const [adjustNote, setAdjustNote] = useState('')
-  const [error, setError]       = useState<string | null>(null)
-  const [iteration, setIteration] = useState(0)
+  const [error, setError]           = useState<string | null>(null)
+  const [iteration, setIteration]   = useState(0)
+  const pollingRef                  = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  // Limpa polling ao desmontar
+  useEffect(() => () => { if (pollingRef.current) clearInterval(pollingRef.current) }, [])
+
+  // ---- Dispara geração via Background Function ----
   const generate = async (note?: string) => {
-    setStatus('generating'); setError(null)
+    setStatus('generating')
+    setError(null)
+
+    // Limpa status anterior no Supabase antes de começar
+    await supabase
+      .from('brand_profiles')
+      .update({ visual_context_status: 'pending', visual_context_test_url: null, visual_context_error: null })
+      .eq('id', brand.id)
 
     try {
-      const res = await fetch('/api/generate-visual-context', {
+      // Dispara background function (retorna 202 imediatamente)
+      const res = await fetch('/api/generate-visual-context-background', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -37,18 +49,52 @@ export function VisualContextPage({ workspace, brand, onApprove }: Props) {
         }),
       })
 
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Erro ao gerar')
+      // Background functions retornam 202 — qualquer outro status é erro de deploy
+      if (res.status !== 202 && res.status !== 200) {
+        const text = await res.text()
+        throw new Error(`Erro ao iniciar geração (${res.status}): ${text.slice(0, 200)}`)
+      }
 
-      setImageUrl(data.image_url)
-      setStatus('reviewing')
-      setIteration(i => i + 1)
+      // Inicia polling no Supabase
+      startPolling()
+
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Erro')
+      setError(e instanceof Error ? e.message : 'Erro ao iniciar geração')
       setStatus('idle')
     }
   }
 
+  // ---- Polling: verifica visual_context_status a cada 3s ----
+  const startPolling = () => {
+    if (pollingRef.current) clearInterval(pollingRef.current)
+
+    pollingRef.current = setInterval(async () => {
+      const { data, error: fetchErr } = await supabase
+        .from('brand_profiles')
+        .select('visual_context_status, visual_context_test_url, visual_context_error')
+        .eq('id', brand.id)
+        .single()
+
+      if (fetchErr || !data) return
+
+      if (data.visual_context_status === 'done' && data.visual_context_test_url) {
+        clearInterval(pollingRef.current!)
+        pollingRef.current = null
+        setImageUrl(data.visual_context_test_url)
+        setStatus('reviewing')
+        setIteration(i => i + 1)
+      }
+
+      if (data.visual_context_status === 'error') {
+        clearInterval(pollingRef.current!)
+        pollingRef.current = null
+        setError(data.visual_context_error ?? 'Erro ao gerar imagem')
+        setStatus('idle')
+      }
+    }, 3000)
+  }
+
+  // ---- Aprovação ----
   const approve = async () => {
     setStatus('approved')
     await supabase.from('brand_profiles').update({
@@ -58,9 +104,7 @@ export function VisualContextPage({ workspace, brand, onApprove }: Props) {
     setTimeout(onApprove, 1200)
   }
 
-  const requestAdjustment = () => {
-    setStatus('adjusting')
-  }
+  const requestAdjustment = () => setStatus('adjusting')
 
   const submitAdjustment = () => {
     generate(adjustNote)
@@ -68,9 +112,14 @@ export function VisualContextPage({ workspace, brand, onApprove }: Props) {
   }
 
   const reset = async () => {
-    await supabase.from('brand_profiles')
-      .update({ openai_thread_id: null, visual_context_approved: false, visual_context_sample: null })
-      .eq('id', brand.id)
+    if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null }
+    await supabase.from('brand_profiles').update({
+      openai_thread_id: null,
+      visual_context_approved: false,
+      visual_context_sample: null,
+      visual_context_test_url: null,
+      visual_context_status: null,
+    }).eq('id', brand.id)
     setImageUrl(null)
     setStatus('idle')
     setIteration(0)
@@ -110,7 +159,11 @@ export function VisualContextPage({ workspace, brand, onApprove }: Props) {
                 ))}
               </div>
 
-              {error && <div style={{ padding: '10px 12px', background: 'var(--red-light)', border: '1px solid rgba(226,75,74,.2)', borderRadius: 'var(--radius-md)', fontSize: 13, color: 'var(--red)' }}>{error}</div>}
+              {error && (
+                <div style={{ padding: '10px 12px', background: 'var(--red-light)', border: '1px solid rgba(226,75,74,.2)', borderRadius: 'var(--radius-md)', fontSize: 13, color: 'var(--red)' }}>
+                  {error}
+                </div>
+              )}
 
               <button className="btn btn-primary btn-lg" style={{ width: '100%', justifyContent: 'center' }} onClick={() => generate()}>
                 ✦ Gerar arte teste
@@ -127,16 +180,17 @@ export function VisualContextPage({ workspace, brand, onApprove }: Props) {
                 {iteration === 0 ? 'Analisando identidade visual...' : 'Ajustando estilo...'}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                {['Lendo logo e referências', 'Aplicando cores da marca', 'Gerando arte teste'].map((s, i) => (
+                {['Lendo logo e referências', 'Aplicando cores da marca', 'Gerando arte teste'].map((s) => (
                   <div key={s} style={{ fontSize: 12, color: 'var(--text-4)', display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
                     <span style={{ color: 'var(--accent-pink)', fontSize: 10 }}>→</span> {s}
                   </div>
                 ))}
               </div>
+              <div style={{ fontSize: 11, color: 'var(--text-4)' }}>Isso pode levar até 1 minuto…</div>
             </div>
           )}
 
-          {/* REVIEWING */}
+          {/* REVIEWING / ADJUSTING */}
           {(status === 'reviewing' || status === 'adjusting') && imageUrl && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ borderRadius: 'var(--radius-lg)', overflow: 'hidden', border: '1px solid var(--border)' }}>

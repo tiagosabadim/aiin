@@ -1,8 +1,12 @@
 // ============================================================
-//  aiin · Netlify Function: generate-visual-context
-//  Gera 1 imagem teste para validar o contexto visual da marca.
-//  Chamada por: VisualContextPage → POST /api/generate-visual-context
-//  NÃO consome créditos do plano.
+//  aiin · Netlify BACKGROUND Function: generate-visual-context-background
+//  Background functions têm timeout de 15 minutos — ideal para OpenAI.
+//
+//  FLUXO:
+//  1. Frontend chama POST /api/generate-visual-context-background
+//  2. Netlify retorna 202 imediatamente (background)
+//  3. Function processa em background e salva resultado no Supabase
+//  4. Frontend faz polling em brand_profiles.visual_context_test_url
 // ============================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -15,29 +19,20 @@ const supabase = createClient(
 const OPENAI_KEY  = process.env.OPENAI_API_KEY!
 const OPENAI_BASE = 'https://api.openai.com/v1'
 
-// ============================================================
-//  Handler
-// ============================================================
 export const handler = async (event: any) => {
-  // CORS preflight
-  if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers: corsHeaders(),
-      body: '',
-    }
-  }
-
-  if (event.httpMethod !== 'POST') {
-    return json(405, { error: 'Method not allowed' })
-  }
-
   try {
     const { workspace_id, brand_id, adjustment_note } = JSON.parse(event.body ?? '{}')
 
     if (!workspace_id || !brand_id) {
-      return json(400, { error: 'workspace_id e brand_id são obrigatórios' })
+      console.error('workspace_id e brand_id são obrigatórios')
+      return
     }
+
+    // Marca como "gerando"
+    await supabase
+      .from('brand_profiles')
+      .update({ visual_context_status: 'generating', visual_context_error: null })
+      .eq('id', brand_id)
 
     // Busca brand completo com assets
     const { data: brand, error: brandErr } = await supabase
@@ -47,49 +42,55 @@ export const handler = async (event: any) => {
       .single()
 
     if (brandErr || !brand) {
-      return json(404, { error: 'Marca não encontrada' })
+      await supabase.from('brand_profiles').update({
+        visual_context_status: 'error',
+        visual_context_error: 'Marca não encontrada',
+      }).eq('id', brand_id)
+      return
     }
 
-    // 1. Garante (ou reutiliza) contexto visual da marca
+    // 1. Garante contexto visual da marca
     const brandContextId = await ensureBrandContext(brand)
 
-    // 2. Gera imagem teste com contexto da marca
+    // 2. Gera imagem teste
     const { b64, usedContextId } = await generateTestImage(brand, brandContextId, adjustment_note)
 
     // 3. Upload para Supabase Storage
-    const fileName   = `${workspace_id}/visual-context-test/${brand_id}_${Date.now()}.png`
-    const buffer     = Buffer.from(b64, 'base64')
+    const fileName = `${workspace_id}/visual-context-test/${brand_id}_${Date.now()}.png`
+    const buffer   = Buffer.from(b64, 'base64')
 
     const { error: uploadErr } = await supabase.storage
       .from('posts')
       .upload(fileName, buffer, { contentType: 'image/png', upsert: true })
 
-    if (uploadErr) {
-      console.error('Upload error:', uploadErr.message)
-      return json(500, { error: 'Erro ao salvar imagem: ' + uploadErr.message })
-    }
+    if (uploadErr) throw new Error('Erro no upload: ' + uploadErr.message)
 
     const { data: urlData } = supabase.storage.from('posts').getPublicUrl(fileName)
 
-    // 4. Persiste o context id (previous_response_id) na marca para reutilizar
-    if (usedContextId) {
-      await supabase
-        .from('brand_profiles')
-        .update({ openai_thread_id: usedContextId })
-        .eq('id', brand_id)
-    }
+    // 4. Persiste resultado no Supabase — o frontend vai buscar via polling
+    await supabase.from('brand_profiles').update({
+      visual_context_status: 'done',
+      visual_context_test_url: urlData.publicUrl,
+      visual_context_error: null,
+      ...(usedContextId ? { openai_thread_id: usedContextId } : {}),
+    }).eq('id', brand_id)
 
-    return json(200, { image_url: urlData.publicUrl })
+    console.log('Visual context gerado com sucesso:', urlData.publicUrl)
 
   } catch (err: any) {
-    console.error('Erro generate-visual-context:', err.message)
-    return json(500, { error: err.message ?? 'Erro interno' })
+    console.error('Erro generate-visual-context-background:', err.message)
+    const { brand_id } = JSON.parse(event.body ?? '{}')
+    if (brand_id) {
+      await supabase.from('brand_profiles').update({
+        visual_context_status: 'error',
+        visual_context_error: err.message ?? 'Erro ao gerar imagem',
+      }).eq('id', brand_id)
+    }
   }
 }
 
 // ============================================================
 //  Garante contexto visual da marca (logo + referências)
-//  Reutiliza openai_thread_id se já existir
 // ============================================================
 async function ensureBrandContext(brand: any): Promise<string | null> {
   if (brand.openai_thread_id) {
@@ -128,7 +129,6 @@ Mantenha consistência total com esta identidade em todas as gerações.`,
     if (logoAsset?.public_url) {
       content.push({ type: 'input_image', image_url: logoAsset.public_url })
     }
-
     for (const asset of refAssets) {
       if (asset.public_url) {
         content.push({ type: 'input_image', image_url: asset.public_url })
@@ -137,14 +137,8 @@ Mantenha consistência total com esta identidade em todas as gerações.`,
 
     const res = await fetch(`${OPENAI_BASE}/responses`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENAI_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        input: [{ role: 'user', content }],
-      }),
+      headers: { 'Authorization': `Bearer ${OPENAI_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'gpt-4o', input: [{ role: 'user', content }] }),
     })
 
     const data = await res.json()
@@ -188,9 +182,7 @@ COMPOSIÇÃO DA IMAGEM TESTE:
 • Nome da marca "${brand.name}" em tipografia clara
 • Slogan "${activeSlogans}" se houver
 • Layout limpo e profissional
-• Qualidade premium para Instagram (formato 4:5, 1024x1280px)
-
-Esta é uma imagem de VALIDAÇÃO — mostre a identidade visual da marca de forma clara e fiel.`
+• Qualidade premium para Instagram (formato 4:5, 1024x1280px)`
 
   const prompt = adjustmentNote
     ? `${basePrompt}\n\nAJUSTE SOLICITADO PELO CLIENTE:\n${adjustmentNote}\n\nAplique este ajuste mantendo toda a identidade visual da marca.`
@@ -198,10 +190,7 @@ Esta é uma imagem de VALIDAÇÃO — mostre a identidade visual da marca de for
 
   const requestBody: any = {
     model: 'gpt-4o',
-    input: [{
-      role: 'user',
-      content: [{ type: 'input_text', text: prompt }],
-    }],
+    input: [{ role: 'user', content: [{ type: 'input_text', text: prompt }] }],
     tools: [{
       type: 'image_generation',
       size: '1024x1280',
@@ -216,10 +205,7 @@ Esta é uma imagem de VALIDAÇÃO — mostre a identidade visual da marca de for
 
   const res = await fetch(`${OPENAI_BASE}/responses`, {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${OPENAI_KEY}`,
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Authorization': `Bearer ${OPENAI_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(requestBody),
   })
 
@@ -233,24 +219,4 @@ Esta é uma imagem de VALIDAÇÃO — mostre a identidade visual da marca de for
   }
 
   return { b64: imageOutput.result, usedContextId: data.id ?? previousResponseId }
-}
-
-// ============================================================
-//  Helpers
-// ============================================================
-function corsHeaders() {
-  return {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Content-Type': 'application/json',
-  }
-}
-
-function json(statusCode: number, body: object) {
-  return {
-    statusCode,
-    headers: corsHeaders(),
-    body: JSON.stringify(body),
-  }
 }
