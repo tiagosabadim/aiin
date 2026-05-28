@@ -8,13 +8,12 @@ import { DashboardPage } from './pages/DashboardPage'
 import { BriefingPage } from './pages/BriefingPage'
 import { PostsPage } from './pages/PostsPage'
 import { SchedulePage } from './pages/SchedulePage'
-import { AssetsPage } from './pages/AssetsPage'
 import { InsightsPage, DesignSystemPage, SettingsPage } from './pages/OtherPages'
 import { CampaignsPage } from './pages/CampaignsPage'
 import { AdminPage } from './pages/AdminPage'
 import './index.css'
 
-export type Route = 'dashboard' | 'briefing' | 'campaigns' | 'posts' | 'schedule' | 'assets' | 'insights' | 'design' | 'settings'
+export type Route = 'dashboard' | 'briefing' | 'campaigns' | 'posts' | 'schedule' | 'insights' | 'design' | 'settings'
 
 export default function App() {
   const { user, loading: authLoading } = useAuth()
@@ -60,7 +59,6 @@ export default function App() {
       {route === 'campaigns'  && <CampaignsPage {...ctx} />}
       {route === 'posts'      && <PostsPage      workspaceId={workspace.id} userId={user.id} />}
       {route === 'schedule'   && <SchedulePage   workspaceId={workspace.id} />}
-      {route === 'assets'     && <AssetsPage     workspaceId={workspace.id} brandId={brand.id} />}
       {route === 'insights'   && <InsightsPage workspaceId={workspace.id} brand={brand} />}
       {route === 'design'     && <DesignSystemPage brand={brand} workspaceId={workspace.id} onSave={refetch} openOnboardingAt={openOnboardingAt} />}
       {route === 'settings'   && <SettingsPage   workspace={workspace} brand={brand} />}

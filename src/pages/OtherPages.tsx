@@ -496,6 +496,34 @@ export function DesignSystemPage({ brand, workspaceId, onSave, openOnboardingAt 
               placeholder="ex: Artes minimalistas com muito respiro. Logo no canto superior. Evitar elementos próximos às bordas." />
           </Section>
 
+          {/* Acervo */}
+          <Section title="Acervo visual" icon="🖼" action={
+            <>
+              <input ref={assetsRef} type="file" multiple accept="image/*" style={{ display: 'none' }} onChange={handleAssetsUpload} />
+              <button onClick={() => assetsRef.current?.click()} style={{ height: 28, padding: '0 12px', background: 'linear-gradient(135deg,#FF6A00,#F72585,#7B2CFF)', border: 'none', borderRadius: 8, color: 'white', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>+ Adicionar fotos</button>
+            </>
+          }>
+            <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 10 }}>Fotos, referências e materiais — a IA usa para criar no seu estilo</div>
+            {assets.length === 0 ? (
+              <div onClick={() => assetsRef.current?.click()} style={{ border: '2px dashed rgba(247,37,133,.15)', borderRadius: 12, padding: '28px 16px', textAlign: 'center', cursor: 'pointer', background: 'rgba(247,37,133,.02)' }}>
+                <div style={{ fontSize: 24, opacity: .3, marginBottom: 6 }}>🖼</div>
+                <div style={{ fontSize: 12, color: '#9CA3AF' }}>Clique para adicionar fotos e referências</div>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px,1fr))', gap: 8 }}>
+                <div onClick={() => assetsRef.current?.click()} style={{ aspectRatio: '1', border: '2px dashed rgba(247,37,133,.15)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: 'rgba(247,37,133,.02)', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ fontSize: 20, color: '#F72585', opacity: .5 }}>+</span>
+                </div>
+                {assets.map(asset => (
+                  <div key={asset.id} style={{ aspectRatio: '1', borderRadius: 10, overflow: 'hidden', position: 'relative', background: '#F7F8FA', border: '1px solid rgba(7,13,31,.08)' }}>
+                    <img src={asset.url} alt={asset.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    <button onClick={() => asset.dbId && deleteAsset(asset.dbId)} style={{ position: 'absolute', top: 4, right: 4, width: 20, height: 20, borderRadius: '50%', background: 'rgba(226,75,74,.9)', border: 'none', color: 'white', fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Section>
+
         </div>
       </div>
     </div>
