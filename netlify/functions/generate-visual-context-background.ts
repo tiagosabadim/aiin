@@ -21,7 +21,7 @@ const OPENAI_BASE = 'https://api.openai.com/v1'
 
 export const handler = async (event: any) => {
   try {
-    const { workspace_id, brand_id, adjustment_note } = JSON.parse(event.body ?? '{}')
+    const { workspace_id, brand_id, adjustment_note, reference_urls } = JSON.parse(event.body ?? '{}')
 
     if (!workspace_id || !brand_id) {
       console.error('workspace_id e brand_id são obrigatórios')
@@ -53,7 +53,7 @@ export const handler = async (event: any) => {
     const brandContextId = await ensureBrandContext(brand)
 
     // 2. Gera imagem teste
-    const { b64, usedContextId } = await generateTestImage(brand, brandContextId, adjustment_note)
+    const { b64, usedContextId } = await generateTestImage(brand, brandContextId, adjustment_note, reference_urls)
 
     // 3. Upload para Supabase Storage
     const fileName = `${workspace_id}/visual-context-test/${brand_id}_${Date.now()}.png`
@@ -160,6 +160,7 @@ async function generateTestImage(
   brand: any,
   previousResponseId: string | null,
   adjustmentNote?: string,
+  referenceUrls?: string[],
 ): Promise<{ b64: string; usedContextId: string | null }> {
 
   const brandColors   = brand.color_palette?.map((c: any) => `${c.name}: ${c.hex}`).join(', ') ?? ''
@@ -185,7 +186,7 @@ COMPOSIÇÃO DA IMAGEM TESTE:
 • Qualidade premium para Instagram (formato 4:5, 1024x1280px)`
 
   const prompt = adjustmentNote
-    ? `INSTRUÇÃO PRIORITÁRIA — APLICAR OBRIGATORIAMENTE:\n${adjustmentNote}\n\nMantenha a identidade visual da marca mas aplique o ajuste acima.\n\n${basePrompt}`
+    ? `INSTRUÇÃO PRIORITÁRIA — APLICAR OBRIGATORIAMENTE NESTA GERAÇÃO:\n${adjustmentNote}\n\n${basePrompt}`
     : basePrompt
 
   const requestBody: any = {
@@ -199,7 +200,7 @@ COMPOSIÇÃO DA IMAGEM TESTE:
     }],
   }
 
-  // Com ajuste, não reutilizar contexto anterior — deixa a IA aplicar livremente
+  // Com ajuste, não reutilizar contexto — deixa IA aplicar livremente
   if (previousResponseId && !adjustmentNote) {
     requestBody.previous_response_id = previousResponseId
   }
