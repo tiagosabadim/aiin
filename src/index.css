@@ -228,6 +228,7 @@ img { display: block; max-width: 100%; }
 /* Área de conteúdo — flex:1, overflow:auto */
 .page-content {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   display: flex;
