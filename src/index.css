@@ -7,10 +7,7 @@
 
 /* Reset */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body, #root {
-  height: 100vh;
-  overflow: hidden;
-}
+html, body, #root { height: 100%; }
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   background: #F4F5F7;
@@ -86,6 +83,7 @@ img { display: block; max-width: 100%; }
 
 /* ── Layout raiz ─────────────────────────────────────────── */
 #root {
+  display: flex;
   height: 100vh;
   overflow: hidden;
 }
@@ -260,9 +258,9 @@ img { display: block; max-width: 100%; }
   min-height: 0;
 }
 .page-split-left {
-  width: 400px;
-  min-width: 400px;
-  max-width: 400px;
+  width: 600px;
+  min-width: 600px;
+  max-width: 600px;
   flex-shrink: 0;
   height: 100%;
   overflow-y: auto;

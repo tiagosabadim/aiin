@@ -25,8 +25,8 @@ const TYPE_LABELS: Record<string,string> = {
 const PERIOD_DAYS: Record<Period,number> = { semana:7, quinzena:14, mes:30 }
 
 // Estilos reutilizados
-const card: React.CSSProperties = { background:'#fff', border:'1px solid rgba(7,13,31,.08)', borderRadius:16, padding:'20px 22px' }
-const secLabel: React.CSSProperties = { fontSize:11, fontWeight:600, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:12, display:'block' }
+const card: React.CSSProperties = { background:'#fff', border:'1px solid rgba(7,13,31,.08)', borderRadius:14, padding:'12px 16px' }
+const secLabel: React.CSSProperties = { fontSize:10, fontWeight:600, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:8, display:'block' }
 const counterBtn: React.CSSProperties = { width:32, height:32, borderRadius:8, border:'1px solid rgba(7,13,31,.12)', background:'#fff', cursor:'pointer', fontSize:18, display:'flex', alignItems:'center', justifyContent:'center', color:'#374151', fontFamily:'inherit' }
 
 export function BriefingPage({ workspace, brand, subscription, credits, navigate }: Props) {
@@ -130,12 +130,12 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
     <div className="page-split">
 
       {/* ── ESQUERDA ── */}
-      <div className="page-split-left">
+      <div className="page-split-left" style={{gap:14}}>
 
         <div>
           <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
             <span style={{color:'#F72585',fontSize:18}}>✦</span>
-            <h1 style={{fontSize:22,fontWeight:700,color:'#070D1F',letterSpacing:'-.4px'}}>
+            <h1 style={{fontSize:20,fontWeight:700,color:'#070D1F',letterSpacing:'-.4px'}}>
               {phase==='plan'?'Planejar conteúdo':`${items.length} posts planejados`}
             </h1>
           </div>
@@ -152,13 +152,13 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
               <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10}}>
                 {([['semana','1 semana','~5 posts'],['quinzena','2 semanas','~10 posts'],['mes','1 mês','~20 posts']] as const).map(([v,l,s])=>(
                   <button key={v} onClick={()=>setPeriod(v)} style={{
-                    padding:'14px 8px',textAlign:'center',cursor:'pointer',fontFamily:'inherit',
+                    padding:'10px 8px',textAlign:'center',cursor:'pointer',fontFamily:'inherit',
                     border:`1.5px solid ${period===v?'#F72585':'rgba(7,13,31,.1)'}`,
                     borderRadius:12,background:period===v?'linear-gradient(135deg,rgba(255,106,0,.07),rgba(247,37,133,.07),rgba(123,44,255,.07))':'#fff',
                     position:'relative',display:'flex',flexDirection:'column',alignItems:'center',gap:6,transition:'all .15s',
                   }}>
                     {period===v&&<span style={{position:'absolute',top:8,right:8,width:16,height:16,borderRadius:'50%',background:'#F72585',display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,color:'white'}}>✓</span>}
-                    <div style={{width:28,height:28,borderRadius:8,background:period===v?'rgba(247,37,133,.1)':'#F7F8FA',display:'flex',alignItems:'center',justifyContent:'center',color:period===v?'#F72585':'#9CA3AF'}}>
+                    <div style={{width:24,height:24,borderRadius:6,background:period===v?'rgba(247,37,133,.1)':'#F7F8FA',display:'flex',alignItems:'center',justifyContent:'center',color:period===v?'#F72585':'#9CA3AF'}}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                     </div>
                     <div style={{fontSize:13,fontWeight:600,color:period===v?'#070D1F':'#374151'}}>{l}</div>
@@ -175,14 +175,14 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
                   <span style={secLabel}>Data de início</span>
                   <div style={{position:'relative'}}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',pointerEvents:'none'}}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    <input type="date" value={startDate} onChange={e=>setStart(e.target.value)} style={{width:'100%',height:42,paddingLeft:32,paddingRight:10,border:'1px solid rgba(7,13,31,.1)',borderRadius:10,fontSize:13,fontFamily:'inherit',outline:'none',color:'#070D1F',background:'#F7F8FA'}} />
+                    <input type="date" value={startDate} onChange={e=>setStart(e.target.value)} style={{width:'100%',height:36,paddingLeft:32,paddingRight:10,border:'1px solid rgba(7,13,31,.1)',borderRadius:10,fontSize:13,fontFamily:'inherit',outline:'none',color:'#070D1F',background:'#F7F8FA'}} />
                   </div>
                 </div>
                 <div>
                   <span style={secLabel}>Posts/semana</span>
                   <div style={{display:'flex',gap:5}}>
                     {[2,3,4,5,7].map(n=>(
-                      <button key={n} onClick={()=>setPpw(n)} style={{flex:1,height:42,cursor:'pointer',fontFamily:'inherit',borderRadius:8,fontSize:14,fontWeight:ppw===n?700:500,transition:'all .12s',border:`1.5px solid ${ppw===n?'#F72585':'rgba(7,13,31,.1)'}`,background:ppw===n?'linear-gradient(135deg,rgba(255,106,0,.07),rgba(247,37,133,.07),rgba(123,44,255,.07))':'#fff',color:ppw===n?'#F72585':'#6B7280'}}>{n}</button>
+                      <button key={n} onClick={()=>setPpw(n)} style={{flex:1,height:36,cursor:'pointer',fontFamily:'inherit',borderRadius:8,fontSize:13,fontWeight:ppw===n?700:500,transition:'all .12s',border:`1.5px solid ${ppw===n?'#F72585':'rgba(7,13,31,.1)'}`,background:ppw===n?'linear-gradient(135deg,rgba(255,106,0,.07),rgba(247,37,133,.07),rgba(123,44,255,.07))':'#fff',color:ppw===n?'#F72585':'#6B7280'}}>{n}</button>
                     ))}
                   </div>
                 </div>
@@ -192,7 +192,7 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
             {/* Mix */}
             <div style={card}>
               <span style={secLabel}>Mix de formatos</span>
-              <div style={{display:'flex',flexDirection:'column',gap:16}}>
+              <div style={{display:'flex',flexDirection:'column',gap:10}}>
                 {[
                   {label:'Posts estáticos',sub:'1 crédito cada', color:'#7B2CFF',bg:'rgba(123,44,255,.1)',val:nPost,set:setNPost,
                    icon:<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>},
@@ -202,7 +202,7 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
                    icon:<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><circle cx="12" cy="18" r="1"/></svg>},
                 ].map(row=>(
                   <div key={row.label} style={{display:'flex',alignItems:'center'}}>
-                    <div style={{width:36,height:36,borderRadius:10,background:row.bg,display:'flex',alignItems:'center',justifyContent:'center',color:row.color,marginRight:12,flexShrink:0}}>
+                    <div style={{width:30,height:30,borderRadius:8,background:row.bg,display:'flex',alignItems:'center',justifyContent:'center',color:row.color,marginRight:12,flexShrink:0}}>
                       {row.icon}
                     </div>
                     <div style={{flex:1}}>
@@ -226,7 +226,7 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
             {/* Tema */}
             <div>
               <span style={secLabel}>Tema <span style={{fontWeight:400,textTransform:'none',letterSpacing:0,color:'#C4C7CE'}}>(opcional)</span></span>
-              <input value={theme} onChange={e=>setTheme(e.target.value)} placeholder="ex: coleção inverno, promoção, lançamento, dicas..." style={{width:'100%',height:44,padding:'0 14px',border:'1px solid rgba(7,13,31,.1)',borderRadius:10,fontSize:13,fontFamily:'inherit',outline:'none',background:'#fff',color:'#070D1F'}} />
+              <input value={theme} onChange={e=>setTheme(e.target.value)} placeholder="ex: coleção inverno, promoção, lançamento, dicas..." style={{width:'100%',height:38,padding:'0 12px',border:'1px solid rgba(7,13,31,.1)',borderRadius:10,fontSize:13,fontFamily:'inherit',outline:'none',background:'#fff',color:'#070D1F'}} />
               <div style={{fontSize:11,color:'#9CA3AF',marginTop:6}}>A IA cria títulos baseados nisso para deixar tudo alinhado.</div>
             </div>
 
@@ -234,7 +234,7 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
 
             <div style={{flex:1}} />
 
-            <button onClick={generate} disabled={loading||total===0} style={{width:'100%',height:52,background:loading||total===0?'#e5e7eb':'linear-gradient(135deg,#FF6A00 0%,#F72585 50%,#7B2CFF 100%)',border:'none',borderRadius:12,color:loading||total===0?'#9CA3AF':'white',fontSize:15,fontWeight:700,fontFamily:'inherit',cursor:loading||total===0?'not-allowed':'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:10,boxShadow:loading||total===0?'none':'0 4px 20px rgba(247,37,133,.35)',transition:'all .2s'}}>
+            <button onClick={generate} disabled={loading||total===0} style={{width:'100%',height:46,background:loading||total===0?'#e5e7eb':'linear-gradient(135deg,#FF6A00 0%,#F72585 50%,#7B2CFF 100%)',border:'none',borderRadius:12,color:loading||total===0?'#9CA3AF':'white',fontSize:15,fontWeight:700,fontFamily:'inherit',cursor:loading||total===0?'not-allowed':'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:10,boxShadow:loading||total===0?'none':'0 4px 20px rgba(247,37,133,.35)',transition:'all .2s'}}>
               {loading?(
                 <><div style={{width:16,height:16,border:'2.5px solid rgba(255,255,255,.3)',borderTopColor:'white',borderRadius:'50%',animation:'spin 1s linear infinite'}} /> Gerando cronograma…</>
               ):(
@@ -254,7 +254,7 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
               </div>
             )}
             <div style={{flex:1}} />
-            <button onClick={approveAll} disabled={approvingAll||credits<itemCr||items.every(i=>i.status!=='pending')} style={{width:'100%',height:52,background:'linear-gradient(135deg,#FF6A00,#F72585,#7B2CFF)',border:'none',borderRadius:12,color:'white',fontSize:15,fontWeight:700,fontFamily:'inherit',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:10,boxShadow:'0 4px 20px rgba(247,37,133,.35)',opacity:approvingAll||credits<itemCr||items.every(i=>i.status!=='pending')?0.5:1}}>
+            <button onClick={approveAll} disabled={approvingAll||credits<itemCr||items.every(i=>i.status!=='pending')} style={{width:'100%',height:46,background:'linear-gradient(135deg,#FF6A00,#F72585,#7B2CFF)',border:'none',borderRadius:12,color:'white',fontSize:15,fontWeight:700,fontFamily:'inherit',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:10,boxShadow:'0 4px 20px rgba(247,37,133,.35)',opacity:approvingAll||credits<itemCr||items.every(i=>i.status!=='pending')?0.5:1}}>
               {approvingAll?<><div style={{width:16,height:16,border:'2.5px solid rgba(255,255,255,.3)',borderTopColor:'white',borderRadius:'50%',animation:'spin 1s linear infinite'}} /> Gerando…</>:`✦ Aprovar todos · ${itemCr} créditos`}
             </button>
             <button onClick={()=>setPhase('plan')} style={{width:'100%',height:44,background:'transparent',border:'1px solid rgba(7,13,31,.12)',borderRadius:10,fontSize:13,cursor:'pointer',fontFamily:'inherit',color:'#374151'}}>← Rever configuração</button>
