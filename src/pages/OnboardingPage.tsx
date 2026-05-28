@@ -9,9 +9,12 @@ const TONES = ['Descontraído e próximo','Profissional e sério','Inspirador e 
 const OBJECTIVES = ['Atrair novos clientes','Fidelizar clientes atuais','Lançar produto/serviço','Aumentar reconhecimento','Gerar vendas diretas']
 const SEGMENTS = ['Clínica de estética','Salão de beleza','Barbearia','Restaurante / Food','Loja local','Infoprodutor','Prestador de serviços','Imobiliária','Academia / Pilates','Saúde','Moda / Brechó','Outro']
 
-export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
+export function OnboardingPage({ onComplete, initialStep, existingBrand, existingWorkspace }: { onComplete: () => void; initialStep?: number; existingBrand?: any; existingWorkspace?: any }) {
   const { user } = useAuth()
-  const [step, setStep]     = useState<Step>(1)
+  const [step, setStep]     = useState<Step>((initialStep ?? 1) as Step)
+  const [maxStep, setMaxStep] = useState<number>(initialStep ?? 1)
+  const goTo = (n: number) => { if (n <= maxStep) setStep(n as Step) }
+  const advance = (n: number) => { setStep(n as Step); setMaxStep(p => Math.max(p, n)) }
   const [loading, setLoading] = useState(false)
   const [error, setError]   = useState<string | null>(null)
 
@@ -56,7 +59,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         .select().single()
       if (bErr) throw bErr
       setBrandId(brand.id)
-      setStep(2)
+      advance(2)
     } catch (e: unknown) { setError(e instanceof Error ? e.message : 'Erro') }
     finally { setLoading(false) }
   }
@@ -69,7 +72,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         target_audience: audience, main_objective: objective, tone_of_voice: tone,
         products, forbidden_words: forbiddenWords.split(',').map(w => w.trim()).filter(Boolean),
       }).eq('id', brandId)
-      setStep(3)
+      advance(3)
     } catch (e: unknown) { setError(e instanceof Error ? e.message : 'Erro') }
     finally { setLoading(false) }
   }
@@ -84,7 +87,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         design_rules: designRules,
         instagram_handle: instagramHandle,
       }).eq('id', brandId)
-      setStep(4)
+      advance(4)
     } catch (e: unknown) { setError(e instanceof Error ? e.message : 'Erro') }
     finally { setLoading(false) }
   }
@@ -110,7 +113,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
           await supabase.from('brand_assets').insert({ workspace_id: workspaceId, brand_id: brandId, name: file.name.replace(/\.[^.]+$/, ''), storage_path: path, public_url: urlData.publicUrl, asset_type:'foto_produto', category:'produto' })
         }
       }
-      setStep(5)
+      advance(5)
     } catch (e: unknown) { setError(e instanceof Error ? e.message : 'Erro') }
     finally { setLoading(false) }
   }
@@ -148,19 +151,20 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
         {/* Steps */}
         <div style={{ display:'flex', alignItems:'center', marginBottom:28 }}>
           {STEPS.map((label, i) => {
-            const n = i+1; const active = step === n; const done = step > n
+            const n = i+1; const active = step === n; const done = n <= maxStep && step !== n; const reachable = n <= maxStep
             return (
               <div key={label} style={{ display:'flex', alignItems:'center', flex: i < STEPS.length-1 ? 1 : 'none' }}>
-                <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
+                <div onClick={() => goTo(n)} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4, cursor: reachable ? 'pointer' : 'default' }}>
                   <div style={{ width:28, height:28, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, transition:'all .2s',
                     background: done||active ? 'var(--gradient)' : 'var(--surface-3)',
                     color: done||active ? 'white' : 'var(--text-4)',
                     boxShadow: active ? '0 0 0 4px rgba(247,37,133,.15)' : 'none',
+                    transform: reachable && !active ? 'scale(1)' : active ? 'scale(1.1)' : 'scale(1)',
                   }}>{done ? '✓' : n}</div>
-                  <span style={{ fontSize:9, color: active ? 'var(--text-1)' : 'var(--text-4)', whiteSpace:'nowrap', fontWeight: active ? 600 : 400, textTransform:'uppercase', letterSpacing:'.04em' }}>{label}</span>
+                  <span style={{ fontSize:9, color: active ? 'var(--text-1)' : done ? 'var(--text-3)' : 'var(--text-4)', whiteSpace:'nowrap', fontWeight: active ? 600 : 400, textTransform:'uppercase', letterSpacing:'.04em', textDecoration: reachable && !active ? 'underline' : 'none', textDecorationColor:'rgba(7,13,31,.2)' }}>{label}</span>
                 </div>
                 {i < STEPS.length-1 && (
-                  <div style={{ flex:1, height:1, margin:'0 6px 14px', background: done ? 'var(--gradient)' : 'var(--border)', transition:'background .3s' }} />
+                  <div style={{ flex:1, height:1, margin:'0 6px 14px', background: n < maxStep ? 'var(--gradient)' : 'var(--border)', transition:'background .3s' }} />
                 )}
               </div>
             )
@@ -277,7 +281,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
               </div>
               {error && <div style={{ padding:'10px 12px', background:'var(--red-light)', border:'1px solid rgba(226,75,74,.2)', borderRadius:'var(--radius-md)', fontSize:13, color:'var(--red)' }}>{error}</div>}
               <div style={{ display:'flex', gap:10 }}>
-                <button className="btn btn-ghost" onClick={() => setStep(2)}>← Voltar</button>
+                <button className="btn btn-ghost" onClick={() => goTo(1)}>← Voltar</button>
                 <button className="btn btn-primary" style={{ flex:1 }} onClick={saveStep3} disabled={loading}>{loading ? 'Salvando...' : 'Continuar →'}</button>
               </div>
             </div>
@@ -327,7 +331,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
 
               {error && <div style={{ padding:'10px 12px', background:'var(--red-light)', border:'1px solid rgba(226,75,74,.2)', borderRadius:'var(--radius-md)', fontSize:13, color:'var(--red)' }}>{error}</div>}
               <div style={{ display:'flex', gap:10 }}>
-                <button className="btn btn-ghost" onClick={() => setStep(3)}>← Voltar</button>
+                <button className="btn btn-ghost" onClick={() => goTo(2)}>← Voltar</button>
                 <button className="btn btn-primary" style={{ flex:1 }} onClick={saveStep4} disabled={loading}>{loading ? 'Enviando...' : 'Continuar →'}</button>
               </div>
             </div>
