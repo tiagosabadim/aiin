@@ -366,7 +366,6 @@ export function OnboardingPage({ onComplete, initialStep, existingBrand, existin
           )}
         </div>
       </div>
-      </div>
     </div>
   )
 }
