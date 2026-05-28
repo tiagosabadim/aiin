@@ -7,7 +7,7 @@
 
 /* Reset */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body, #root { height: 100%; }
+html, body, #root-OLD { height: 100%; }
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   background: #F4F5F7;
@@ -82,8 +82,7 @@ img { display: block; max-width: 100%; }
 }
 
 /* ── Layout raiz ─────────────────────────────────────────── */
-#root {
-  display: flex;
+#root-OLD {
   height: 100vh;
   overflow: hidden;
 }
