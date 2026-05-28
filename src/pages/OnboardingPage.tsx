@@ -79,28 +79,29 @@ export function OnboardingPage({ onComplete, initialStep, existingBrand, existin
   const [brandId, setBrandId]         = useState<string | null>(existingBrand?.id ?? null)
   const [brandData, setBrandData]     = useState<any>(existingBrand ?? null)
 
-  // Sincronizar estados quando existingBrand chega do banco (pode chegar depois do render inicial)
+  // Sincronizar TODOS os campos sempre que existingBrand chegar do banco
   useEffect(() => {
-    if (!existingBrand) return
-    if (existingWorkspace?.name) setWorkspaceName(existingWorkspace.name)
-    if (existingBrand.name)             setBrandName(existingBrand.name)
-    if (existingBrand.segment)          setSegment(existingBrand.segment)
-    if (existingBrand.city)             setCity(existingBrand.city)
-    if (existingBrand.target_audience)  setAudience(existingBrand.target_audience)
-    if (existingBrand.main_objective)   setObjective(existingBrand.main_objective)
-    if (existingBrand.tone_of_voice)    setTone(existingBrand.tone_of_voice)
-    if (existingBrand.products)         setProducts(existingBrand.products)
-    if (existingBrand.forbidden_words?.length) setForbiddenWords(existingBrand.forbidden_words.join(', '))
-    if (existingBrand.color_palette?.length)   setColors(existingBrand.color_palette)
-    const activeSlogan = existingBrand.slogans?.find((s: any) => s.active)?.text
-    if (activeSlogan)                   setSlogan(activeSlogan)
-    if (existingBrand.design_rules)     setDesignRules(existingBrand.design_rules)
-    if (existingBrand.instagram_handle) setInstagramHandle(existingBrand.instagram_handle)
-    if (existingBrand.logo_urls?.primary) setLogoPreview(existingBrand.logo_urls.primary)
-    if (existingBrand.id)               setBrandId(existingBrand.id)
-    if (existingWorkspace?.id)          setWorkspaceId(existingWorkspace.id)
+    if (!existingBrand?.id) return
+    setWorkspaceName(existingWorkspace?.name ?? '')
+    setBrandName(existingBrand.name ?? '')
+    setSegment(existingBrand.segment ?? '')
+    setCity(existingBrand.city ?? '')
+    setAudience(existingBrand.target_audience ?? '')
+    setObjective(existingBrand.main_objective ?? OBJECTIVES[0])
+    setTone(existingBrand.tone_of_voice ?? TONES[0])
+    setProducts(existingBrand.products ?? '')
+    setForbiddenWords(Array.isArray(existingBrand.forbidden_words) ? existingBrand.forbidden_words.join(', ') : '')
+    setColors(Array.isArray(existingBrand.color_palette) && existingBrand.color_palette.length > 0
+      ? existingBrand.color_palette
+      : [{ name: 'Principal', hex: '#7B2CFF' }, { name: 'Secundária', hex: '#F72585' }])
+    setSlogan(existingBrand.slogans?.find((s: any) => s.active)?.text ?? existingBrand.slogans?.[0]?.text ?? '')
+    setDesignRules(existingBrand.design_rules ?? '')
+    setInstagramHandle(existingBrand.instagram_handle ?? '')
+    setLogoPreview(existingBrand.logo_urls?.primary ?? null)
+    setBrandId(existingBrand.id)
+    setWorkspaceId(existingWorkspace?.id ?? null)
     setBrandData(existingBrand)
-  }, [existingBrand?.id, existingWorkspace?.id])
+  }, [existingBrand?.id])
 
   const sc = STEP_CONTENT[(step as number) - 1]
 
