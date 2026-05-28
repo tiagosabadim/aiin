@@ -172,7 +172,7 @@ export function AppLayout({ route, navigate, credits, pendingCount, children }: 
         </div>
 
         {/* Conteúdo da página */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
           {children}
         </div>
 

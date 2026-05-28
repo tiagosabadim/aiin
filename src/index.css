@@ -1028,6 +1028,3 @@ textarea.input { height: auto; padding: 10px 12px; resize: vertical; }
   --shadow-md:      0 4px 12px rgba(7,13,31,0.08), 0 2px 4px rgba(7,13,31,0.04);
   --shadow-lg:      0 8px 24px rgba(7,13,31,0.10), 0 4px 8px rgba(7,13,31,0.06);
 }
-
-/* ── BriefingPage split ocupa tela toda ── */
-.main > div { flex: 1; min-height: 0; display: flex; flex-direction: column; }
