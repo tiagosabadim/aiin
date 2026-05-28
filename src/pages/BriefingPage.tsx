@@ -217,15 +217,16 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
   //  RENDER — split-screen
   // ============================================================
   return (
-    <div style={{ display: 'flex', minHeight: '100%' }}>
+    <div style={{ display: 'flex', flex: 1, height: '100%', overflow: 'hidden' }}>
 
       {/* ── ESQUERDA: configuração ── */}
       <div style={{
-        width: '100%', maxWidth: 400, flexShrink: 0,
+        width: 400, minWidth: 400, flexShrink: 0,
         background: 'var(--surface-2)',
         borderRight: '1px solid var(--border)',
         padding: '28px 24px',
         overflowY: 'auto',
+        height: '100%',
         display: 'flex', flexDirection: 'column', gap: 20,
       }}
         className="briefing-left"
@@ -331,7 +332,8 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
           <div style={{ padding: '10px 14px', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 'var(--r8)', fontSize: 12, color: 'var(--danger)' }}>{error}</div>
         )}
 
-        {/* CTA */}
+        {/* CTA — sempre visível no fundo */}
+        <div style={{ marginTop: 'auto', paddingTop: 8 }}>
         {phase === 'plan' ? (
           <button
             className="btn btn-primary btn-lg btn-full"
@@ -367,6 +369,7 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
             </button>
           </div>
         )}
+        </div>
       </div>
 
       {/* ── DIREITA: cronograma / empty state ── */}
@@ -375,6 +378,7 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
         background: 'var(--surface)',
         padding: phase === 'plan' ? 0 : '28px 28px',
         overflowY: 'auto',
+        height: '100%',
         display: 'flex', flexDirection: 'column',
       }}>
 
