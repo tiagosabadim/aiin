@@ -31,7 +31,7 @@ export default function App() {
   if (authLoading || wsLoading) return <SplashScreen />
   if (!user) return <LoginPage />
   if (!workspace || !brand || !brand.onboarding_completed) {
-    return <OnboardingPage onComplete={refetch} />
+    return <OnboardingPage onComplete={refetch} existingBrand={brand} existingWorkspace={workspace} />
   }
 
   // Reabrir onboarding em step específico (ex: resetar contexto visual → step 6)

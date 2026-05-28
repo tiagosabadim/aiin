@@ -206,10 +206,10 @@ export function OnboardingPage({ onComplete, initialStep, existingBrand, existin
   const canAdvance = !validate()
 
   return (
-    <div style={{ height: '100vh', overflow: 'hidden', display: 'flex', background: '#fff' }}>
+    <div className="onboarding-root" style={{ height: '100vh', overflow: 'hidden', display: 'flex', background: '#fff' }}>
 
       {/* ESQUERDA — ilustração */}
-      <div style={{ flex: '0 0 42%', background: 'linear-gradient(145deg, #FFF0F8 0%, #F0EEFF 50%, #EEF6FF 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 36px', position: 'relative', overflow: 'hidden' }}>
+      <div className="onboarding-left" style={{ flex: '0 0 42%', background: 'linear-gradient(145deg, #FFF0F8 0%, #F0EEFF 50%, #EEF6FF 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 36px', position: 'relative', overflow: 'hidden' }}>
 
         {/* Logo */}
         <div style={{ position: 'absolute', top: 24, left: 28, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -241,10 +241,25 @@ export function OnboardingPage({ onComplete, initialStep, existingBrand, existin
             <p style={{ fontSize: 12, color: '#374151', lineHeight: 1.5, margin: 0 }}>{sc.tip}</p>
           </div>
         </div>
+
+        {/* Usuário logado */}
+        {user && (
+          <div style={{ position: 'absolute', bottom: 24, left: 28, right: 28, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg,#FF6A00,#F72585,#7B2CFF)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: 'white', flexShrink: 0 }}>
+              {user.email?.[0]?.toUpperCase()}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 500, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}</div>
+            </div>
+            <button onClick={() => supabase.auth.signOut()} style={{ background: 'none', border: '1px solid rgba(7,13,31,.15)', borderRadius: 8, padding: '4px 10px', fontSize: 11, color: '#6B7280', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+              Sair
+            </button>
+          </div>
+        )}
       </div>
 
       {/* DIREITA — form */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div className="onboarding-right" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
         {/* Header com stepper */}
         <OnboardingHeader step={step} maxStep={maxStep} goTo={goTo} />
@@ -385,7 +400,7 @@ export function OnboardingPage({ onComplete, initialStep, existingBrand, existin
         </div>
 
         {/* Botão flutuante fixo no fundo */}
-        <div style={{ position: 'absolute', bottom: 0, right: 0, left: '42%', background: 'linear-gradient(transparent, #fff 30%)', padding: '20px 40px 28px', pointerEvents: 'none' }}>
+        <div className="onboarding-fab" style={{ position: 'absolute', bottom: 0, right: 0, left: '42%', background: 'linear-gradient(transparent, #fff 30%)', padding: '20px 40px 28px', pointerEvents: 'none' }}>
           <div style={{ pointerEvents: 'all' }}>
             {validationMsg && (
               <div style={{ marginBottom: 10, padding: '8px 14px', background: '#FCEBEB', border: '1px solid rgba(226,75,74,.2)', borderRadius: 8, fontSize: 12, color: '#E24B4A', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -414,6 +429,17 @@ export function OnboardingPage({ onComplete, initialStep, existingBrand, existin
           </div>
         </div>
       </div>
+
+      {/* Mobile responsive */}
+      <style>{`
+        @media (max-width: 768px) {
+          .onboarding-root { flex-direction: column !important; height: auto !important; min-height: 100vh !important; overflow: auto !important; }
+          .onboarding-left { flex: none !important; width: 100% !important; padding: 24px 20px 20px !important; min-height: auto !important; }
+          .onboarding-left > div:nth-child(2) { display: none !important; } /* esconde ilustração grande */
+          .onboarding-right { overflow: visible !important; }
+          .onboarding-fab { position: fixed !important; left: 0 !important; right: 0 !important; padding: 12px 16px 24px !important; }
+        }
+      `}</style>
     </div>
   )
 }
