@@ -102,24 +102,17 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
       for (let i = 0; i < carouselCount; i++) mix.push('carrossel_5')
       for (let i = 0; i < storyCount;    i++) mix.push('story')
 
-      // Chama GPT-4o para gerar cronograma
+      // Chama GPT-4o via Netlify Function (key segura no servidor)
       const prompt = buildSchedulePrompt(brand, period, postsPerWeek, mix, theme, start, end)
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      const res = await fetch('/api/generate-schedule', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_OPENAI_KEY ?? ''}` },
-        body: JSON.stringify({
-          model: 'gpt-4o',
-          response_format: { type: 'json_object' },
-          messages: [
-            { role: 'system', content: 'Você é um estrategista de conteúdo para Instagram no Brasil. Responda sempre em JSON válido sem markdown.' },
-            { role: 'user', content: prompt },
-          ],
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
       })
       const data = await res.json()
-      if (data.error) throw new Error(data.error.message)
+      if (!res.ok) throw new Error(data.error ?? 'Erro ao gerar cronograma')
 
-      const parsed = JSON.parse(data.choices[0].message.content)
+      const parsed = JSON.parse(data.content)
       const scheduleItems: ScheduleItem[] = parsed.items.map((item: any, idx: number) => ({
         id: `item-${idx}`, position: idx + 1,
         scheduled_date: item.date,
