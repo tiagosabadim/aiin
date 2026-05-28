@@ -185,7 +185,7 @@ COMPOSIÇÃO DA IMAGEM TESTE:
 • Qualidade premium para Instagram (formato 4:5, 1024x1280px)`
 
   const prompt = adjustmentNote
-    ? `${basePrompt}\n\nAJUSTE SOLICITADO PELO CLIENTE:\n${adjustmentNote}\n\nAplique este ajuste mantendo toda a identidade visual da marca.`
+    ? `INSTRUÇÃO PRIORITÁRIA — APLICAR OBRIGATORIAMENTE:\n${adjustmentNote}\n\nMantenha a identidade visual da marca mas aplique o ajuste acima.\n\n${basePrompt}`
     : basePrompt
 
   const requestBody: any = {
@@ -199,7 +199,8 @@ COMPOSIÇÃO DA IMAGEM TESTE:
     }],
   }
 
-  if (previousResponseId) {
+  // Com ajuste, não reutilizar contexto anterior — deixa a IA aplicar livremente
+  if (previousResponseId && !adjustmentNote) {
     requestBody.previous_response_id = previousResponseId
   }
 
