@@ -11,6 +11,7 @@ import { SchedulePage } from './pages/SchedulePage'
 import { AssetsPage } from './pages/AssetsPage'
 import { InsightsPage, DesignSystemPage, SettingsPage } from './pages/OtherPages'
 import { CampaignsPage } from './pages/CampaignsPage'
+import { AdminPage } from './pages/AdminPage'
 import { VisualContextPage } from './pages/VisualContextPage'
 import './index.css'
 
@@ -38,6 +39,8 @@ export default function App() {
   if (brand.onboarding_completed && !(brand as any).visual_context_approved) {
     return <VisualContextPage workspace={workspace} brand={brand} onApprove={refetch} />
   }
+
+  if (route === ("admin" as any)) return <AdminPage />
 
   const ctx = { workspace, brand, subscription, credits, navigate }
 
