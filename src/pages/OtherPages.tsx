@@ -415,11 +415,9 @@ export function DesignSystemPage({ brand, workspaceId, onSave, openOnboardingAt 
         </div>
       )}
 
-      {/* Split: esquerda identidade, direita acervo */}
-      <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden', marginTop: 12 }}>
-
-        {/* ESQUERDA — identidade */}
-        <div style={{ width: 480, minWidth: 480, flexShrink: 0, overflowY: 'auto', padding: '0 28px 32px', borderRight: '1px solid var(--border)' }}>
+      {/* Layout centralizado */}
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '0 0 32px' }}>
+        <div style={{ maxWidth: 680, margin: '0 auto', padding: '0 28px' }}>
 
           {/* Logo */}
           <Section title="Logo" icon="★">
@@ -497,67 +495,7 @@ export function DesignSystemPage({ brand, workspaceId, onSave, openOnboardingAt 
               style={{ width: '100%', padding: '8px 10px', border: '1px solid rgba(7,13,31,.1)', borderRadius: 8, fontSize: 12, fontFamily: 'inherit', outline: 'none', resize: 'vertical', lineHeight: 1.5 }}
               placeholder="ex: Artes minimalistas com muito respiro. Logo no canto superior. Evitar elementos próximos às bordas." />
           </Section>
-        </div>
 
-        {/* DIREITA — acervo */}
-        <div style={{ flex: 1, minWidth: 0, overflowY: 'auto', padding: '0 28px 32px' }}>
-
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, marginTop: 2 }}>
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: '#070D1F' }}>Acervo visual</div>
-              <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>Fotos, referências e materiais da marca — a IA usa para criar conteúdo no seu estilo</div>
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input ref={assetsRef} type="file" multiple accept="image/*" style={{ display: 'none' }} onChange={handleAssetsUpload} />
-              <button onClick={() => assetsRef.current?.click()} style={{ height: 34, padding: '0 14px', background: 'linear-gradient(135deg,#FF6A00,#F72585,#7B2CFF)', border: 'none', borderRadius: 8, color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                + Adicionar fotos
-              </button>
-            </div>
-          </div>
-
-          {assets.length === 0 ? (
-            <div onClick={() => assetsRef.current?.click()} style={{ border: '2px dashed rgba(247,37,133,.2)', borderRadius: 16, padding: '48px 24px', textAlign: 'center', cursor: 'pointer', background: 'rgba(247,37,133,.02)' }}>
-              <div style={{ fontSize: 32, marginBottom: 10, opacity: .4 }}>🖼</div>
-              <div style={{ fontSize: 14, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Adicionar fotos e referências</div>
-              <div style={{ fontSize: 12, color: '#9CA3AF', lineHeight: 1.6, maxWidth: 280, margin: '0 auto' }}>
-                Fotos de produtos, espaço, equipe, posts anteriores, moodboard — tudo que ajude a IA a entender seu estilo
-              </div>
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px,1fr))', gap: 10 }}>
-              {/* Botão adicionar */}
-              <div onClick={() => assetsRef.current?.click()} style={{ aspectRatio: '1', border: '2px dashed rgba(247,37,133,.2)', borderRadius: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: 'rgba(247,37,133,.02)', gap: 6 }}>
-                <span style={{ fontSize: 24, color: '#F72585', opacity: .6 }}>+</span>
-                <span style={{ fontSize: 11, color: '#9CA3AF' }}>Adicionar</span>
-              </div>
-              {assets.map(asset => (
-                <div key={asset.id} style={{ aspectRatio: '1', border: '1px solid rgba(7,13,31,.08)', borderRadius: 12, overflow: 'hidden', position: 'relative', background: '#F7F8FA', group: 'true' } as any}>
-                  <img src={asset.url} alt={asset.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                  <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.0)', transition: 'background .15s', display: 'flex', alignItems: 'flex-end', padding: 6 }}
-                    onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'rgba(0,0,0,.35)'}
-                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'rgba(0,0,0,.0)'}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                      <span style={{ fontSize: 10, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textShadow: '0 1px 3px rgba(0,0,0,.5)' }}>{asset.name}</span>
-                      <button onClick={() => asset.dbId && deleteAsset(asset.dbId)} style={{ width: 22, height: 22, borderRadius: '50%', background: 'rgba(226,75,74,.9)', border: 'none', color: 'white', fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>×</button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* DNA atual */}
-          {brand.ai_brand_dna && (
-            <div style={{ marginTop: 24 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#070D1F', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ background: 'linear-gradient(135deg,#FF6A00,#F72585,#7B2CFF)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>✦</span>
-                Brand DNA atual
-              </div>
-              <div style={{ background: '#F7F8FA', borderRadius: 12, padding: '12px 14px', fontSize: 11, color: '#6B7280', lineHeight: 1.7, maxHeight: 160, overflowY: 'auto', border: '1px solid rgba(7,13,31,.07)', whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
-                {brand.ai_brand_dna}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
