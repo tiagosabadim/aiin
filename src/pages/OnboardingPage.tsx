@@ -20,29 +20,29 @@ const STEPS_CONFIG = [
   { n: 6, label: 'Validar',    icon: '✓'  },
 ]
 
-export function OnboardingPage({ onComplete, initialStep = 1 }: { onComplete: () => void; initialStep?: number }) {
+export function OnboardingPage({ onComplete, initialStep = 1, existingBrand, existingWorkspace }: { onComplete: () => void; initialStep?: number; existingBrand?: any; existingWorkspace?: any }) {
   const { user } = useAuth()
   const [step, setStep]       = useState<Step>(initialStep as Step)
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<string | null>(null)
 
   // Step 1
-  const [workspaceName, setWorkspaceName] = useState('')
-  const [brandName, setBrandName]         = useState('')
-  const [segment, setSegment]             = useState('')
+  const [workspaceName, setWorkspaceName] = useState(existingWorkspace?.name ?? '')
+  const [brandName, setBrandName]         = useState(existingBrand?.name ?? '')
+  const [segment, setSegment]             = useState(existingBrand?.segment ?? '')
   const [city, setCity]                   = useState('')
 
   // Step 2
-  const [audience, setAudience]   = useState('')
-  const [objective, setObjective] = useState(OBJECTIVES[0])
-  const [tone, setTone]           = useState(TONES[0])
-  const [products, setProducts]   = useState('')
+  const [audience, setAudience]   = useState(existingBrand?.target_audience ?? '')
+  const [objective, setObjective] = useState(existingBrand?.main_objective ?? OBJECTIVES[0])
+  const [tone, setTone]           = useState(existingBrand?.tone_of_voice ?? TONES[0])
+  const [products, setProducts]   = useState(existingBrand?.products ?? '')
   const [forbiddenWords, setForbiddenWords] = useState('')
 
   // Step 3
-  const [colors, setColors]       = useState([{ name:'Principal', hex:'#7B2CFF' }, { name:'Secundária', hex:'#F72585' }])
-  const [slogan, setSlogan]       = useState('')
-  const [designRules, setDesignRules] = useState('')
+  const [colors, setColors]       = useState(existingBrand?.color_palette?.length > 0 ? existingBrand.color_palette : [{ name:'Principal', hex:'#7B2CFF' }, { name:'Secundária', hex:'#F72585' }])
+  const [slogan, setSlogan]       = useState(existingBrand?.slogans?.find((s: any) => s.active)?.text ?? '')
+  const [designRules, setDesignRules] = useState(existingBrand?.design_rules ?? '')
   const [instagramHandle, setInstagramHandle] = useState('')
 
   // Step 4
@@ -50,12 +50,12 @@ export function OnboardingPage({ onComplete, initialStep = 1 }: { onComplete: ()
   const assetsRef = useRef<HTMLInputElement>(null)
   const [logoFile, setLogoFile]         = useState<File | null>(null)
   const [assetFiles, setAssetFiles]     = useState<File[]>([])
-  const [logoPreview, setLogoPreview]   = useState<string | null>(null)
+  const [logoPreview, setLogoPreview]   = useState<string | null>(existingBrand?.logo_urls?.primary ?? null)
 
   // IDs
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null)
-  const [brandId, setBrandId]         = useState<string | null>(null)
-  const [brandData, setBrandData]     = useState<any | null>(null)
+  const [workspaceId, setWorkspaceId] = useState<string | null>(existingWorkspace?.id ?? null)
+  const [brandId, setBrandId]         = useState<string | null>(existingBrand?.id ?? null)
+  const [brandData, setBrandData]     = useState<any | null>(existingBrand ?? null)
 
   const go = (n: Step) => {
     // Só permite voltar para steps já completados

@@ -183,7 +183,8 @@ Cores: ${brand.color_palette?.map((c: any) => `${c.name} ${c.hex}`).join(', ') ?
 Fontes: ${brand.typography?.title ?? '—'}
 Palavras proibidas: ${brand.forbidden_words?.join(', ') ?? 'nenhuma'}
 Regras de design: ${brand.design_rules ?? 'nenhuma'}
-Assets disponíveis: ${brand.brand_assets?.length ?? 0} imagens
+Logo URL: ${brand.logo_urls?.primary ?? 'não enviada'}
+Assets visuais: ${brand.brand_assets?.filter((a: any) => a.public_url).slice(0,5).map((a: any) => a.public_url).join(', ') || 'nenhum'}
 Aprendizados: ${brand.brand_learnings?.map((l: any) => l.content).join(' | ') ?? 'nenhum ainda'}
   `.trim()
 

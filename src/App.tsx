@@ -37,7 +37,12 @@ export default function App() {
 
   // Reabrir onboarding em step específico (ex: resetar contexto visual → step 6)
   if (onboardingStep !== null) {
-    return <OnboardingPage onComplete={() => { setOnboardingStep(null); refetch() }} initialStep={onboardingStep as any} />
+    return <OnboardingPage
+      onComplete={() => { setOnboardingStep(null); refetch() }}
+      initialStep={onboardingStep as any}
+      existingBrand={brand}
+      existingWorkspace={workspace}
+    />
   }
 
   // Validação visual obrigatória após onboarding
