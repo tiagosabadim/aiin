@@ -100,28 +100,31 @@ export const handler = async (event: any) => {
           title, objective, extra_context, hashtags
         )
 
-        // 2. Gera imagem para cada slide
-        for (let s = 0; s < content.slides.length; s++) {
-          const slide = content.slides[s]
-          const imageResult = await generateImageWithBrandContext(
-            slide, mergedBrand, job_type, brandContextId
-          )
+        // 2. Gera todas as imagens EM PARALELO para caber no timeout
+        console.log(`Gerando ${content.slides.length} slides em paralelo...`)
+        await Promise.all(content.slides.map(async (slide, s) => {
+          try {
+            const imageResult = await generateImageWithBrandContext(
+              slide, mergedBrand, job_type, brandContextId
+            )
+            const fileName = `${workspace_id}/generated/${job_id}_post${i+1}_slide${s+1}.png`
+            const buffer = Buffer.from(imageResult.b64, 'base64')
 
-          // Upload para Supabase Storage
-          const fileName = `${workspace_id}/generated/${job_id}_post${i+1}_slide${s+1}.png`
-          const buffer = Buffer.from(imageResult.b64, 'base64')
+            const { error: uploadErr } = await supabase.storage
+              .from('posts')
+              .upload(fileName, buffer, { contentType: 'image/png', upsert: true })
 
-          const { error: uploadErr } = await supabase.storage
-            .from('posts')
-            .upload(fileName, buffer, { contentType: 'image/png', upsert: true })
-
-          if (!uploadErr) {
-            const { data: urlData } = supabase.storage.from('posts').getPublicUrl(fileName)
-            content.slides[s].public_url = urlData.publicUrl
-          } else {
-            console.error('Upload error:', uploadErr.message)
+            if (!uploadErr) {
+              const { data: urlData } = supabase.storage.from('posts').getPublicUrl(fileName)
+              content.slides[s].public_url = urlData.publicUrl
+              console.log(`Slide ${s+1} gerado e salvo`)
+            } else {
+              console.error(`Upload slide ${s+1}:`, uploadErr.message)
+            }
+          } catch (slideErr: any) {
+            console.error(`Erro slide ${s+1}:`, slideErr.message)
           }
-        }
+        }))
 
         // 3. Salva creative_output
         const firstSlide = content.slides[0]
