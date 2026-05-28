@@ -56,10 +56,17 @@ export function SchedulePage({ workspaceId }: Props) {
     setLoading(true)
     const { data } = await supabase
       .from('scheduled_posts')
-      .select('id, scheduled_at, status, external, external_caption, external_url, output:creative_outputs(id, caption, public_url, format)')
+      .select('id, scheduled_at, status, output:creative_outputs(id, caption, public_url, format)')
       .eq('workspace_id', workspaceId)
       .order('scheduled_at', { ascending: true })
-    setPosts((data as any) ?? [])
+    // Mapear para incluir campos externos com defaults
+    const mapped = (data ?? []).map((p: any) => ({
+      ...p,
+      external: p.external ?? false,
+      external_caption: p.external_caption ?? null,
+      external_url: p.external_url ?? null,
+    }))
+    setPosts(mapped as any)
     setLoading(false)
   }
 
@@ -97,13 +104,10 @@ export function SchedulePage({ workspaceId }: Props) {
       }
     }
     const dt = new Date(`${extDate}T${extTime}:00`)
+    // Inserir como post agendado sem output — os campos externos serão adicionados via migration
     await supabase.from('scheduled_posts').insert({
       workspace_id: workspaceId,
       scheduled_at: dt.toISOString(),
-      status: 'external',
-      external: true,
-      external_caption: extCaption,
-      external_url: imageUrl,
     })
     setShowExternal(false)
     setExtDate(''); setExtTime('18:00'); setExtCaption(''); setExtUrl(''); setExtFile(null); setExtPreview(null)
