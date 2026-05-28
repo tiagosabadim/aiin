@@ -287,22 +287,37 @@ function EngagementChart({ insights }: { insights: PostInsight[] }) {
 //  DesignSystemPage
 // ============================================================
 export function DesignSystemPage({ brand, workspaceId, onSave, openOnboardingAt }: { brand: BrandProfile; workspaceId: string; onSave: () => void; openOnboardingAt?: (step: number) => void }) {
-  const logoRef  = useRef<HTMLInputElement>(null)
-  const illusRef = useRef<HTMLInputElement>(null)
+  const logoRef    = useRef<HTMLInputElement>(null)
+  const assetsRef  = useRef<HTMLInputElement>(null)
+
   const [colors, setColors]   = useState<ColorSwatch[]>(brand.color_palette ?? [])
   const [slogans, setSlogans] = useState<Slogan[]>(brand.slogans ?? [])
-  const [newSlogan, setNewSlogan]   = useState('')
-  const [editingSloganIdx, setEditingSloganIdx] = useState<number | null>(null)
-  const [editSloganVal, setEditSloganVal] = useState('')
+  const [newSlogan, setNewSlogan] = useState('')
   const [titleFont, setTitleFont] = useState(brand.typography?.title ?? 'Inter, sans-serif')
   const [bodyFont,  setBodyFont]  = useState(brand.typography?.body  ?? 'Inter, sans-serif')
   const [designRules, setDesignRules] = useState(brand.design_rules ?? '')
   const [logoPreview, setLogoPreview] = useState<string | undefined>(brand.logo_urls?.primary)
-  const [illustrations, setIllustrations] = useState<{ id:string; name:string; url:string }[]>([])
-  const [saving, setSaving]   = useState(false)
-  const [saved,  setSaved]    = useState(false)
-  const [genDNA, setGenDNA]   = useState(false)
+  const [assets, setAssets] = useState<{ id: string; name: string; url: string; dbId?: string }[]>([])
+  const [saving, setSaving] = useState(false)
+  const [saved,  setSaved]  = useState(false)
+  const [genDNA, setGenDNA] = useState(false)
   const ROLES = ['Principal','Secundária','Destaque','Texto','Fundo','Outro']
+
+  useEffect(() => {
+    fetchAssets()
+  }, [])
+
+  const fetchAssets = async () => {
+    const { data } = await supabase
+      .from('brand_assets')
+      .select('*')
+      .eq('brand_id', brand.id)
+      .neq('asset_type', 'logo')
+      .order('created_at', { ascending: false })
+    if (data) {
+      setAssets(data.map(a => ({ id: a.id, name: a.name, url: a.public_url, dbId: a.id })))
+    }
+  }
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return
@@ -315,18 +330,48 @@ export function DesignSystemPage({ brand, workspaceId, onSave, openOnboardingAt 
     }
   }
 
+  const handleAssetsUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    for (const file of files) {
+      const path = `${workspaceId}/assets/${Date.now()}_${file.name}`
+      const { error } = await supabase.storage.from('assets').upload(path, file, { upsert: true })
+      if (!error) {
+        const { data: urlData } = supabase.storage.from('assets').getPublicUrl(path)
+        const { data: asset } = await supabase.from('brand_assets').insert({
+          workspace_id: workspaceId, brand_id: brand.id,
+          name: file.name.replace(/\.[^.]+$/, ''),
+          storage_path: path, public_url: urlData.publicUrl,
+          asset_type: 'foto_produto', category: 'referencia',
+        }).select().single()
+        if (asset) setAssets(prev => [{ id: asset.id, name: asset.name, url: urlData.publicUrl, dbId: asset.id }, ...prev])
+      }
+    }
+    if (assetsRef.current) assetsRef.current.value = ''
+  }
+
+  const deleteAsset = async (assetId: string) => {
+    await supabase.from('brand_assets').delete().eq('id', assetId)
+    setAssets(prev => prev.filter(a => a.dbId !== assetId))
+  }
+
   const save = async () => {
     setSaving(true); setSaved(false)
-    await supabase.from('brand_profiles').update({ color_palette: colors, slogans, typography: { title: titleFont, body: bodyFont }, design_rules: designRules }).eq('id', brand.id)
+    await supabase.from('brand_profiles').update({
+      color_palette: colors, slogans,
+      typography: { title: titleFont, body: bodyFont },
+      design_rules: designRules,
+    }).eq('id', brand.id)
     setSaving(false); setSaved(true)
     setTimeout(() => setSaved(false), 2500)
     onSave()
   }
 
   const regenerateDNA = async () => {
-    setGenDNA(true); await save()
+    setGenDNA(true)
+    await save()
     await generateBrandDNA(brand.id)
-    setGenDNA(false); onSave()
+    setGenDNA(false)
+    onSave()
   }
 
   const resetVisualContext = async () => {
@@ -334,165 +379,203 @@ export function DesignSystemPage({ brand, workspaceId, onSave, openOnboardingAt 
     await supabase.from('brand_profiles')
       .update({ openai_thread_id: null, visual_context_approved: false, visual_context_sample: null })
       .eq('id', brand.id)
-    // Vai direto para step 6 (validar visual) sem reload
     if (openOnboardingAt) openOnboardingAt(6)
   }
 
   return (
-    <div className="page">
-      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:24, flexWrap:'wrap', gap:10 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+
+      {/* Header fixo */}
+      <div style={{ padding: '20px 28px 16px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
         <div>
-          <h1 className="page-title">Brand DNA</h1>
-          <p className="page-sub">Identidade visual usada pela IA para criar posts coerentes</p>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: '#070D1F', letterSpacing: '-.3px', marginBottom: 2 }}>Brand DNA</h1>
+          <p style={{ fontSize: 12, color: '#6B7280' }}>Identidade visual usada pela IA para criar posts coerentes</p>
         </div>
-        <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-          <button className="btn btn-ghost btn-sm" onClick={resetVisualContext} style={{ color:'var(--red)', borderColor:'rgba(226,75,74,.25)' }}>
-            ↺ Revalidar estilo visual
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={resetVisualContext} style={{ height: 34, padding: '0 14px', border: '1px solid rgba(226,75,74,.25)', borderRadius: 8, background: 'transparent', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', color: '#E24B4A' }}>
+            ↺ Revalidar estilo
           </button>
-          <button className="btn btn-ghost btn-sm" onClick={regenerateDNA} disabled={genDNA}>
+          <button onClick={regenerateDNA} disabled={genDNA} style={{ height: 34, padding: '0 14px', border: '1px solid rgba(7,13,31,.12)', borderRadius: 8, background: 'transparent', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', color: '#374151', opacity: genDNA ? .5 : 1 }}>
             {genDNA ? '✦ Gerando...' : '✦ Regenerar DNA'}
           </button>
-          <button className="btn btn-primary btn-sm" onClick={save} disabled={saving} style={saved ? { background:'var(--success)' } : {}}>
+          <button onClick={save} disabled={saving} style={{ height: 34, padding: '0 16px', background: saved ? '#1D9E75' : 'linear-gradient(135deg,#FF6A00,#F72585,#7B2CFF)', border: 'none', borderRadius: 8, color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {saving ? 'Salvando...' : saved ? '✓ Salvo!' : 'Salvar'}
           </button>
         </div>
       </div>
 
-      {/* Status do contexto visual */}
+      {/* Status visual aprovado */}
       {(brand as any).visual_context_approved && (brand as any).visual_context_sample && (
-        <div style={{ display:'flex', gap:14, alignItems:'center', padding:'12px 16px', background:'var(--success-light)', border:'1px solid rgba(29,158,117,.2)', borderRadius:'var(--radius-lg)', marginBottom:16 }}>
-          <img src={(brand as any).visual_context_sample} alt="contexto" style={{ width:56, height:56, borderRadius:8, objectFit:'cover', flexShrink:0 }} />
-          <div style={{ flex:1 }}>
-            <div style={{ fontSize:13, fontWeight:600, color:'var(--success)' }}>✓ Contexto visual aprovado</div>
-            <div style={{ fontSize:12, color:'var(--text-3)', marginTop:2 }}>A IA está gerando com a identidade visual validada. Se a qualidade cair, use "Resetar contexto".</div>
+        <div style={{ margin: '12px 28px 0', padding: '10px 14px', background: '#E1F5EE', border: '1px solid rgba(29,158,117,.2)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+          <img src={(brand as any).visual_context_sample} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#1D9E75' }}>✓ Estilo visual validado</div>
+            <div style={{ fontSize: 11, color: '#6B7280' }}>A IA está gerando com sua identidade visual aprovada.</div>
           </div>
         </div>
       )}
 
-      <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+      {/* Split: esquerda identidade, direita acervo */}
+      <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden', marginTop: 12 }}>
 
-        <DSSection title="Logo" icon="★">
-          <input ref={logoRef} type="file" accept="image/*,.svg" style={{ display:'none' }} onChange={handleLogoUpload} />
-          <div style={{ display:'flex', gap:14, alignItems:'center' }}>
-            <div onClick={() => logoRef.current?.click()} style={{ width:100, height:80, borderRadius:'var(--radius-lg)', border:`1px dashed ${logoPreview?'rgba(247,37,133,.4)':'var(--border-md)'}`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', overflow:'hidden', background:'var(--surface-2)' }}>
-              {logoPreview ? <img src={logoPreview} alt="logo" style={{ maxWidth:'90%', maxHeight:'90%', objectFit:'contain' }} /> : <span style={{ fontSize:24, color:'var(--text-4)', opacity:.4 }}>★</span>}
-            </div>
-            <div>
-              <button className="btn btn-ghost btn-sm" onClick={() => logoRef.current?.click()}>↑ Subir logo</button>
-              <div style={{ fontSize:11, color:'var(--text-4)', marginTop:6 }}>PNG ou SVG com fundo transparente</div>
-            </div>
-          </div>
-        </DSSection>
+        {/* ESQUERDA — identidade */}
+        <div style={{ width: 480, minWidth: 480, flexShrink: 0, overflowY: 'auto', padding: '0 28px 32px', borderRight: '1px solid var(--border)' }}>
 
-        <DSSection title="Paleta de cores" icon="●">
-          <div style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:10 }}>
-            {colors.map((c,i) => (
-              <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 10px', background:'var(--surface-2)', borderRadius:'var(--radius-md)' }}>
-                <input type="color" value={c.hex} onChange={e => setColors(prev => prev.map((x,j) => j===i ? { ...x, hex: e.target.value } : x))} style={{ width:32, height:32, border:'none', borderRadius:8, cursor:'pointer', padding:0, flexShrink:0 }} />
-                <input value={c.name} onChange={e => setColors(prev => prev.map((x,j) => j===i ? { ...x, name: e.target.value } : x))} className="input" style={{ flex:1, fontSize:12, padding:'5px 8px' }} placeholder="Nome" />
-                <select value={c.role} onChange={e => setColors(prev => prev.map((x,j) => j===i ? { ...x, role: e.target.value } : x))} className="input" style={{ width:110, fontSize:12, padding:'5px 8px' }}>
-                  {ROLES.map(r => <option key={r}>{r}</option>)}
-                </select>
-                <span style={{ fontSize:10, fontFamily:'monospace', color:'var(--text-4)', minWidth:56 }}>{c.hex}</span>
-                <button className="icon-btn danger" onClick={() => setColors(prev => prev.filter((_,j) => j!==i))}>×</button>
+          {/* Logo */}
+          <Section title="Logo" icon="★">
+            <input ref={logoRef} type="file" accept="image/*,.svg" style={{ display: 'none' }} onChange={handleLogoUpload} />
+            <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+              <div onClick={() => logoRef.current?.click()} style={{ width: 90, height: 72, borderRadius: 12, border: `1.5px dashed ${logoPreview ? 'rgba(247,37,133,.4)' : 'rgba(7,13,31,.15)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', background: '#F7F8FA' }}>
+                {logoPreview ? <img src={logoPreview} alt="logo" style={{ maxWidth: '90%', maxHeight: '90%', objectFit: 'contain' }} /> : <span style={{ fontSize: 22, opacity: .2 }}>★</span>}
               </div>
-            ))}
-          </div>
-          <button className="btn btn-ghost btn-sm" onClick={() => setColors(prev => [...prev, { name:'', hex:'#7B2CFF', role:'Outro' }])}>+ Adicionar cor</button>
-        </DSSection>
-
-        <DSSection title="Tipografia" icon="T">
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-            <div>
-              <label className="label">Fonte de títulos</label>
-              <input value={titleFont} onChange={e => setTitleFont(e.target.value)} className="input" placeholder="ex: Inter, sans-serif" />
-              <div style={{ fontFamily:titleFont, fontSize:20, marginTop:8, color:'var(--text-1)', fontWeight:700 }}>Título exemplo</div>
+              <div>
+                <button onClick={() => logoRef.current?.click()} style={{ height: 32, padding: '0 14px', border: '1px solid rgba(7,13,31,.12)', borderRadius: 8, background: 'transparent', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', color: '#374151' }}>↑ Subir logo</button>
+                <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 5 }}>PNG ou SVG com fundo transparente</div>
+              </div>
             </div>
-            <div>
-              <label className="label">Fonte do corpo</label>
-              <input value={bodyFont} onChange={e => setBodyFont(e.target.value)} className="input" placeholder="ex: Inter, sans-serif" />
-              <div style={{ fontFamily:bodyFont, fontSize:13, marginTop:8, color:'var(--text-2)', lineHeight:1.6 }}>Texto de exemplo.</div>
-            </div>
-          </div>
-        </DSSection>
+          </Section>
 
-        <DSSection title="Slogans" icon="❝">
-          <div style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:10 }}>
-            {slogans.map((s,i) => (
-              <div key={i} style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 12px', border:`1px solid ${s.active?'rgba(247,37,133,.35)':'var(--border)'}`, borderRadius:'var(--radius-md)', background: s.active ? 'var(--gradient-soft)' : 'transparent', cursor:'pointer' }}
-                onClick={() => setSlogans(prev => prev.map((x,j) => ({ ...x, active: j===i })))}>
-                <div style={{ width:14, height:14, borderRadius:'50%', flexShrink:0, border:`1.5px solid ${s.active?'var(--accent-pink)':'var(--border-md)'}`, background: s.active ? 'var(--gradient)' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                  {s.active && <div style={{ width:5, height:5, borderRadius:'50%', background:'white' }} />}
+          {/* Cores */}
+          <Section title="Paleta de cores" icon="●">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+              {colors.map((c, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: '#F7F8FA', borderRadius: 8 }}>
+                  <input type="color" value={c.hex} onChange={e => setColors(prev => prev.map((x, j) => j === i ? { ...x, hex: e.target.value } : x))} style={{ width: 28, height: 28, border: 'none', borderRadius: 6, cursor: 'pointer', padding: 0, flexShrink: 0 }} />
+                  <input value={c.name} onChange={e => setColors(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} style={{ flex: 1, height: 28, padding: '0 8px', border: '1px solid rgba(7,13,31,.1)', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', outline: 'none' }} placeholder="Nome" />
+                  <select value={(c as any).role} onChange={e => setColors(prev => prev.map((x, j) => j === i ? { ...x, role: e.target.value } : x))} style={{ width: 100, height: 28, padding: '0 6px', border: '1px solid rgba(7,13,31,.1)', borderRadius: 6, fontSize: 11, fontFamily: 'inherit', outline: 'none' }}>
+                    {ROLES.map(r => <option key={r}>{r}</option>)}
+                  </select>
+                  <span style={{ fontSize: 10, fontFamily: 'monospace', color: '#9CA3AF', minWidth: 52 }}>{c.hex}</span>
+                  <button onClick={() => setColors(prev => prev.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer', fontSize: 16, padding: '0 2px' }}>×</button>
                 </div>
-                {editingSloganIdx === i ? (
-                  <input value={editSloganVal} onChange={e => setEditSloganVal(e.target.value)} onClick={e => e.stopPropagation()} autoFocus
-                    onKeyDown={e => { if (e.key==='Enter') { setSlogans(prev => prev.map((x,j) => j===i ? { ...x, text: editSloganVal } : x)); setEditingSloganIdx(null) }}}
-                    className="input" style={{ flex:1, fontSize:12, padding:'4px 8px' }} />
-                ) : <span style={{ flex:1, fontSize:13, color: s.active ? 'var(--text-1)' : 'var(--text-3)', fontWeight: s.active ? 500 : 400 }}>{s.text}</span>}
-                <button className="icon-btn" onClick={e => { e.stopPropagation(); setEditingSloganIdx(i); setEditSloganVal(s.text) }}>✎</button>
-                <button className="icon-btn danger" onClick={e => { e.stopPropagation(); setSlogans(prev => prev.filter((_,j) => j!==i)) }}>🗑</button>
+              ))}
+            </div>
+            <button onClick={() => setColors(prev => [...prev, { name: '', hex: '#7B2CFF' } as any])} style={{ height: 30, padding: '0 12px', border: '1px solid rgba(7,13,31,.12)', borderRadius: 8, background: 'transparent', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', color: '#374151' }}>+ Adicionar cor</button>
+          </Section>
+
+          {/* Slogans */}
+          <Section title="Slogans" icon="❝">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+              {slogans.map((s, i) => (
+                <div key={i} onClick={() => setSlogans(prev => prev.map((x, j) => ({ ...x, active: j === i })))}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', border: `1px solid ${s.active ? 'rgba(247,37,133,.35)' : 'rgba(7,13,31,.08)'}`, borderRadius: 8, background: s.active ? 'rgba(247,37,133,.04)' : 'transparent', cursor: 'pointer' }}>
+                  <div style={{ width: 12, height: 12, borderRadius: '50%', flexShrink: 0, border: `1.5px solid ${s.active ? '#F72585' : 'rgba(7,13,31,.2)'}`, background: s.active ? '#F72585' : 'transparent' }} />
+                  <span style={{ flex: 1, fontSize: 13, color: s.active ? '#070D1F' : '#6B7280', fontWeight: s.active ? 500 : 400 }}>{s.text}</span>
+                  <button onClick={e => { e.stopPropagation(); setSlogans(prev => prev.filter((_, j) => j !== i)) }} style={{ background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer', fontSize: 14, padding: '0 2px' }}>×</button>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input value={newSlogan} onChange={e => setNewSlogan(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && newSlogan.trim()) { setSlogans(prev => [...prev, { text: newSlogan.trim(), active: false }]); setNewSlogan('') }}}
+                style={{ flex: 1, height: 36, padding: '0 10px', border: '1px solid rgba(7,13,31,.1)', borderRadius: 8, fontSize: 12, fontFamily: 'inherit', outline: 'none' }}
+                placeholder="Novo slogan — Enter para adicionar" />
+              <button onClick={() => { if (newSlogan.trim()) { setSlogans(prev => [...prev, { text: newSlogan.trim(), active: false }]); setNewSlogan('') }}} style={{ height: 36, padding: '0 12px', background: 'linear-gradient(135deg,#FF6A00,#F72585,#7B2CFF)', border: 'none', borderRadius: 8, color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>+ Add</button>
+            </div>
+          </Section>
+
+          {/* Tipografia */}
+          <Section title="Tipografia" icon="T">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', display: 'block', marginBottom: 5 }}>Fonte de títulos</label>
+                <input value={titleFont} onChange={e => setTitleFont(e.target.value)} style={{ width: '100%', height: 36, padding: '0 10px', border: '1px solid rgba(7,13,31,.1)', borderRadius: 8, fontSize: 12, fontFamily: 'inherit', outline: 'none' }} placeholder="Inter, sans-serif" />
+                <div style={{ fontFamily: titleFont, fontSize: 16, marginTop: 6, color: '#070D1F', fontWeight: 700 }}>Título exemplo</div>
               </div>
-            ))}
-          </div>
-          <div style={{ display:'flex', gap:8 }}>
-            <input value={newSlogan} onChange={e => setNewSlogan(e.target.value)}
-              onKeyDown={e => { if (e.key==='Enter' && newSlogan.trim()) { setSlogans(prev => [...prev, { text: newSlogan.trim(), active: false }]); setNewSlogan('') }}}
-              className="input" placeholder="Novo slogan — Enter para adicionar" style={{ flex:1 }} />
-            <button className="btn btn-primary btn-sm" onClick={() => { if (newSlogan.trim()) { setSlogans(prev => [...prev, { text: newSlogan.trim(), active: false }]); setNewSlogan('') }}}>+ Add</button>
-          </div>
-        </DSSection>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', display: 'block', marginBottom: 5 }}>Fonte do corpo</label>
+                <input value={bodyFont} onChange={e => setBodyFont(e.target.value)} style={{ width: '100%', height: 36, padding: '0 10px', border: '1px solid rgba(7,13,31,.1)', borderRadius: 8, fontSize: 12, fontFamily: 'inherit', outline: 'none' }} placeholder="Inter, sans-serif" />
+                <div style={{ fontFamily: bodyFont, fontSize: 12, marginTop: 6, color: '#6B7280', lineHeight: 1.5 }}>Texto de exemplo.</div>
+              </div>
+            </div>
+          </Section>
 
-        <DSSection title="Regras para a IA" icon="✦">
-          <label className="label">Instruções de design que a IA deve sempre seguir</label>
-          <textarea value={designRules} onChange={e => setDesignRules(e.target.value)} rows={4} className="input" style={{ resize:'vertical' }}
-            placeholder="ex: Artes minimalistas com muito respiro. Logo no canto superior. Evitar elementos próximos às bordas." />
-        </DSSection>
+          {/* Regras */}
+          <Section title="Regras para a IA" icon="✦">
+            <label style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', display: 'block', marginBottom: 5 }}>Instruções de design que a IA deve sempre seguir</label>
+            <textarea value={designRules} onChange={e => setDesignRules(e.target.value)} rows={4}
+              style={{ width: '100%', padding: '8px 10px', border: '1px solid rgba(7,13,31,.1)', borderRadius: 8, fontSize: 12, fontFamily: 'inherit', outline: 'none', resize: 'vertical', lineHeight: 1.5 }}
+              placeholder="ex: Artes minimalistas com muito respiro. Logo no canto superior. Evitar elementos próximos às bordas." />
+          </Section>
+        </div>
 
-        <DSSection title="Ilustrações e elementos" icon="◈" action={
-          <>
-            <input ref={illusRef} type="file" multiple accept="image/*,.svg" style={{ display:'none' }}
-              onChange={e => { Array.from(e.target.files ?? []).forEach(f => setIllustrations(prev => [...prev, { id: Date.now().toString()+Math.random(), name: f.name.replace(/\.[^.]+$/,''), url: URL.createObjectURL(f) }])); if (illusRef.current) illusRef.current.value='' }} />
-            <button className="btn btn-ghost btn-sm" onClick={() => illusRef.current?.click()}>↑ Subir</button>
-          </>
-        }>
-          {illustrations.length === 0 ? (
-            <div style={{ border:'1px dashed var(--border-md)', borderRadius:'var(--radius-lg)', padding:28, textAlign:'center', color:'var(--text-4)' }}>
-              <div style={{ fontSize:24, marginBottom:8, opacity:.3 }}>🖼</div>
-              <div style={{ fontSize:13, marginBottom:4 }}>Nenhuma ilustração ainda</div>
-              <div style={{ fontSize:12 }}>SVGs, texturas e elementos decorativos da marca</div>
+        {/* DIREITA — acervo */}
+        <div style={{ flex: 1, minWidth: 0, overflowY: 'auto', padding: '0 28px 32px' }}>
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, marginTop: 2 }}>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: '#070D1F' }}>Acervo visual</div>
+              <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>Fotos, referências e materiais da marca — a IA usa para criar conteúdo no seu estilo</div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input ref={assetsRef} type="file" multiple accept="image/*" style={{ display: 'none' }} onChange={handleAssetsUpload} />
+              <button onClick={() => assetsRef.current?.click()} style={{ height: 34, padding: '0 14px', background: 'linear-gradient(135deg,#FF6A00,#F72585,#7B2CFF)', border: 'none', borderRadius: 8, color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                + Adicionar fotos
+              </button>
+            </div>
+          </div>
+
+          {assets.length === 0 ? (
+            <div onClick={() => assetsRef.current?.click()} style={{ border: '2px dashed rgba(247,37,133,.2)', borderRadius: 16, padding: '48px 24px', textAlign: 'center', cursor: 'pointer', background: 'rgba(247,37,133,.02)' }}>
+              <div style={{ fontSize: 32, marginBottom: 10, opacity: .4 }}>🖼</div>
+              <div style={{ fontSize: 14, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Adicionar fotos e referências</div>
+              <div style={{ fontSize: 12, color: '#9CA3AF', lineHeight: 1.6, maxWidth: 280, margin: '0 auto' }}>
+                Fotos de produtos, espaço, equipe, posts anteriores, moodboard — tudo que ajude a IA a entender seu estilo
+              </div>
             </div>
           ) : (
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(120px,1fr))', gap:10 }}>
-              {illustrations.map(ill => (
-                <div key={ill.id} style={{ border:'1px solid var(--border)', borderRadius:'var(--radius-md)', overflow:'hidden' }}>
-                  <div style={{ height:80, background:'var(--surface-2)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                    <img src={ill.url} alt={ill.name} style={{ maxHeight:70, maxWidth:'90%', objectFit:'contain' }} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px,1fr))', gap: 10 }}>
+              {/* Botão adicionar */}
+              <div onClick={() => assetsRef.current?.click()} style={{ aspectRatio: '1', border: '2px dashed rgba(247,37,133,.2)', borderRadius: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: 'rgba(247,37,133,.02)', gap: 6 }}>
+                <span style={{ fontSize: 24, color: '#F72585', opacity: .6 }}>+</span>
+                <span style={{ fontSize: 11, color: '#9CA3AF' }}>Adicionar</span>
+              </div>
+              {assets.map(asset => (
+                <div key={asset.id} style={{ aspectRatio: '1', border: '1px solid rgba(7,13,31,.08)', borderRadius: 12, overflow: 'hidden', position: 'relative', background: '#F7F8FA', group: 'true' } as any}>
+                  <img src={asset.url} alt={asset.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.0)', transition: 'background .15s', display: 'flex', alignItems: 'flex-end', padding: 6 }}
+                    onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'rgba(0,0,0,.35)'}
+                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'rgba(0,0,0,.0)'}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                      <span style={{ fontSize: 10, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textShadow: '0 1px 3px rgba(0,0,0,.5)' }}>{asset.name}</span>
+                      <button onClick={() => asset.dbId && deleteAsset(asset.dbId)} style={{ width: 22, height: 22, borderRadius: '50%', background: 'rgba(226,75,74,.9)', border: 'none', color: 'white', fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>×</button>
+                    </div>
                   </div>
-                  <div style={{ padding:'6px 8px', fontSize:10, color:'var(--text-3)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{ill.name}</div>
                 </div>
               ))}
             </div>
           )}
-        </DSSection>
+
+          {/* DNA atual */}
+          {brand.ai_brand_dna && (
+            <div style={{ marginTop: 24 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#070D1F', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ background: 'linear-gradient(135deg,#FF6A00,#F72585,#7B2CFF)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>✦</span>
+                Brand DNA atual
+              </div>
+              <div style={{ background: '#F7F8FA', borderRadius: 12, padding: '12px 14px', fontSize: 11, color: '#6B7280', lineHeight: 1.7, maxHeight: 160, overflowY: 'auto', border: '1px solid rgba(7,13,31,.07)', whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
+                {brand.ai_brand_dna}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
 }
 
-function DSSection({ title, icon, action, children }: { title:string; icon:string; action?: React.ReactNode; children: React.ReactNode }) {
+function Section({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
   return (
-    <div className="card" style={{ padding:0, overflow:'hidden' }}>
-      <div style={{ padding:'12px 18px', background:'var(--surface-2)', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-        <div style={{ fontSize:13, fontWeight:600, color:'var(--text-1)', display:'flex', alignItems:'center', gap:8 }}>
-          <span style={{ background:'var(--gradient)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>{icon}</span>
-          {title}
-        </div>
-        {action}
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10, paddingBottom: 8, borderBottom: '1px solid rgba(7,13,31,.06)' }}>
+        <span style={{ background: 'linear-gradient(135deg,#FF6A00,#F72585,#7B2CFF)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontSize: 14, fontWeight: 700 }}>{icon}</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#070D1F' }}>{title}</span>
       </div>
-      <div style={{ padding:'16px 18px' }}>{children}</div>
+      {children}
     </div>
   )
 }
+
 
 // ============================================================
 //  SettingsPage
