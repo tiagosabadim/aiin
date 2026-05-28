@@ -20,9 +20,9 @@ const STEPS_CONFIG = [
   { n: 6, label: 'Validar',    icon: '✓'  },
 ]
 
-export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
+export function OnboardingPage({ onComplete, initialStep = 1 }: { onComplete: () => void; initialStep?: number }) {
   const { user } = useAuth()
-  const [step, setStep]       = useState<Step>(1)
+  const [step, setStep]       = useState<Step>(initialStep as Step)
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<string | null>(null)
 

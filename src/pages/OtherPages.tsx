@@ -286,7 +286,7 @@ function EngagementChart({ insights }: { insights: PostInsight[] }) {
 // ============================================================
 //  DesignSystemPage
 // ============================================================
-export function DesignSystemPage({ brand, workspaceId, onSave }: { brand: BrandProfile; workspaceId: string; onSave: () => void }) {
+export function DesignSystemPage({ brand, workspaceId, onSave, openOnboardingAt }: { brand: BrandProfile; workspaceId: string; onSave: () => void; openOnboardingAt?: (step: number) => void }) {
   const logoRef  = useRef<HTMLInputElement>(null)
   const illusRef = useRef<HTMLInputElement>(null)
   const [colors, setColors]   = useState<ColorSwatch[]>(brand.color_palette ?? [])
@@ -330,12 +330,12 @@ export function DesignSystemPage({ brand, workspaceId, onSave }: { brand: BrandP
   }
 
   const resetVisualContext = async () => {
-    if (!confirm('Resetar o contexto visual vai criar uma nova conversa com a IA do zero. Os próximos posts serão gerados com um contexto limpo. Continuar?')) return
+    if (!confirm('Isso vai recriar a imagem conceito da marca. Continuar?')) return
     await supabase.from('brand_profiles')
       .update({ openai_thread_id: null, visual_context_approved: false, visual_context_sample: null })
       .eq('id', brand.id)
-    alert('Contexto resetado! A próxima geração criará um novo contexto visual.')
-    window.location.reload()
+    // Vai direto para step 6 (validar visual) sem reload
+    if (openOnboardingAt) openOnboardingAt(6)
   }
 
   return (
@@ -347,7 +347,7 @@ export function DesignSystemPage({ brand, workspaceId, onSave }: { brand: BrandP
         </div>
         <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
           <button className="btn btn-ghost btn-sm" onClick={resetVisualContext} style={{ color:'var(--red)', borderColor:'rgba(226,75,74,.25)' }}>
-            ↺ Resetar contexto
+            ↺ Revalidar estilo visual
           </button>
           <button className="btn btn-ghost btn-sm" onClick={regenerateDNA} disabled={genDNA}>
             {genDNA ? '✦ Gerando...' : '✦ Regenerar DNA'}

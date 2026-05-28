@@ -12,7 +12,6 @@ import { AssetsPage } from './pages/AssetsPage'
 import { InsightsPage, DesignSystemPage, SettingsPage } from './pages/OtherPages'
 import { CampaignsPage } from './pages/CampaignsPage'
 import { AdminPage } from './pages/AdminPage'
-import { VisualContextPage } from './pages/VisualContextPage'
 import './index.css'
 
 export type Route = 'dashboard' | 'briefing' | 'campaigns' | 'posts' | 'schedule' | 'assets' | 'insights' | 'design' | 'settings'
@@ -21,6 +20,7 @@ export default function App() {
   const { user, loading: authLoading } = useAuth()
   const { workspace, brand, subscription, credits, loading: wsLoading, refetch } = useWorkspace()
   const [route, setRoute] = useState<Route>('dashboard')
+  const [onboardingStep, setOnboardingStep] = useState<number | null>(null)
 
   useEffect(() => {
     const fromHash = window.location.hash.replace('#', '') as Route
@@ -35,12 +35,18 @@ export default function App() {
     return <OnboardingPage onComplete={refetch} />
   }
 
+  // Reabrir onboarding em step específico (ex: resetar contexto visual → step 6)
+  if (onboardingStep !== null) {
+    return <OnboardingPage onComplete={() => { setOnboardingStep(null); refetch() }} initialStep={onboardingStep as any} />
+  }
+
   // Validação visual obrigatória após onboarding
-  // VisualContextPage agora está integrado no OnboardingPage (step 6)
+  // visual_context_approved gerenciado dentro do OnboardingPage (step 6)
 
   if (route === ("admin" as any)) return <AdminPage />
 
-  const ctx = { workspace, brand, subscription, credits, navigate }
+  const openOnboardingAt = (step: number) => setOnboardingStep(step)
+  const ctx = { workspace, brand, subscription, credits, navigate, openOnboardingAt }
 
   return (
     <AppLayout route={route} navigate={navigate} credits={credits} pendingCount={0}>
@@ -51,7 +57,7 @@ export default function App() {
       {route === 'schedule'   && <SchedulePage   workspaceId={workspace.id} />}
       {route === 'assets'     && <AssetsPage     workspaceId={workspace.id} brandId={brand.id} />}
       {route === 'insights'   && <InsightsPage workspaceId={workspace.id} brand={brand} />}
-      {route === 'design'     && <DesignSystemPage brand={brand} workspaceId={workspace.id} onSave={refetch} />}
+      {route === 'design'     && <DesignSystemPage brand={brand} workspaceId={workspace.id} onSave={refetch} openOnboardingAt={openOnboardingAt} />}
       {route === 'settings'   && <SettingsPage   workspace={workspace} brand={brand} />}
     </AppLayout>
   )
