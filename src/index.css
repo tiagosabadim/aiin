@@ -229,16 +229,22 @@ img { display: block; max-width: 100%; }
 .page-content {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+/* Páginas normais: scroll no .page */
+.page-content > .page {
+  overflow-y: auto;
 }
 
 /* Páginas normais com scroll e padding */
 .page {
   padding: 28px 32px;
   flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 @media (max-width: 768px) {
   .page { padding: 16px; }
