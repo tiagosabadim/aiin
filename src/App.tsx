@@ -10,10 +10,11 @@ import { PostsPage } from './pages/PostsPage'
 import { SchedulePage } from './pages/SchedulePage'
 import { AssetsPage } from './pages/AssetsPage'
 import { InsightsPage, DesignSystemPage, SettingsPage } from './pages/OtherPages'
+import { CampaignsPage } from './pages/CampaignsPage'
 import { VisualContextPage } from './pages/VisualContextPage'
 import './index.css'
 
-export type Route = 'dashboard' | 'briefing' | 'posts' | 'schedule' | 'assets' | 'insights' | 'design' | 'settings'
+export type Route = 'dashboard' | 'briefing' | 'campaigns' | 'posts' | 'schedule' | 'assets' | 'insights' | 'design' | 'settings'
 
 export default function App() {
   const { user, loading: authLoading } = useAuth()
@@ -44,6 +45,7 @@ export default function App() {
     <AppLayout route={route} navigate={navigate} credits={credits} pendingCount={0}>
       {route === 'dashboard'  && <DashboardPage {...ctx} />}
       {route === 'briefing'   && <BriefingPage  {...ctx} />}
+      {route === 'campaigns'  && <CampaignsPage {...ctx} />}
       {route === 'posts'      && <PostsPage      workspaceId={workspace.id} userId={user.id} />}
       {route === 'schedule'   && <SchedulePage   workspaceId={workspace.id} />}
       {route === 'assets'     && <AssetsPage     workspaceId={workspace.id} brandId={brand.id} />}
