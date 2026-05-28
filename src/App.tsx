@@ -36,9 +36,7 @@ export default function App() {
   }
 
   // Validação visual obrigatória após onboarding
-  if (brand.onboarding_completed && !(brand as any).visual_context_approved) {
-    return <VisualContextPage workspace={workspace} brand={brand} onApprove={refetch} />
-  }
+  // VisualContextPage agora está integrado no OnboardingPage (step 6)
 
   if (route === ("admin" as any)) return <AdminPage />
 
