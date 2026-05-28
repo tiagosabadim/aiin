@@ -1006,3 +1006,25 @@ textarea.input { height: auto; padding: 10px 12px; resize: vertical; }
   .hide-mobile { display: none; }
   .show-mobile { display: block; }
 }
+
+/* ============================================================
+   ALIASES DE COMPATIBILIDADE — variáveis legadas
+   Mantém componentes antigos funcionando durante migração
+   ============================================================ */
+:root {
+  --brand:          var(--accent-pink);
+  --brand-light:    var(--gradient-soft);
+  --brand-dark:     #C4006E;
+  --radius-sm:      var(--r4);
+  --radius-md:      var(--r8);
+  --radius-lg:      var(--r12);
+  --radius-xl:      var(--r16);
+  --radius-2xl:     var(--r20);
+  --radius-full:    var(--r99);
+  --red-light:      var(--danger-bg);
+  --red:            var(--danger);
+  --font-serif:     var(--font-sans);
+  --shadow-sm:      var(--shadow-xs);
+  --shadow-md:      0 4px 12px rgba(7,13,31,0.08), 0 2px 4px rgba(7,13,31,0.04);
+  --shadow-lg:      0 8px 24px rgba(7,13,31,0.10), 0 4px 8px rgba(7,13,31,0.06);
+}
