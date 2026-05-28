@@ -83,7 +83,6 @@ img { display: block; max-width: 100%; }
 
 /* ── Layout raiz ─────────────────────────────────────────── */
 #root {
-  display: flex;
   height: 100vh;
   overflow: hidden;
 }
@@ -258,8 +257,9 @@ img { display: block; max-width: 100%; }
   min-height: 0;
 }
 .page-split-left {
-  flex: 0 0 55%;
-  max-width: 660px;
+  width: 400px;
+  min-width: 400px;
+  max-width: 400px;
   flex-shrink: 0;
   height: 100%;
   overflow-y: auto;
