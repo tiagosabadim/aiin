@@ -415,9 +415,10 @@ export function DesignSystemPage({ brand, workspaceId, onSave, openOnboardingAt 
         </div>
       )}
 
-      {/* Layout centralizado */}
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '0 0 32px' }}>
-        <div style={{ maxWidth: 680, margin: '0 auto', padding: '0 28px' }}>
+      {/* Split desktop / stack mobile */}
+      <div className="brand-dna-split" style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        {/* ESQUERDA — identidade */}
+        <div style={{ flex: '0 0 50%', maxWidth: '50%', overflowY: 'auto', padding: '0 28px 32px', borderRight: '1px solid var(--border)' }}>
 
           {/* Logo */}
           <Section title="Logo" icon="★">
@@ -496,7 +497,10 @@ export function DesignSystemPage({ brand, workspaceId, onSave, openOnboardingAt 
               placeholder="ex: Artes minimalistas com muito respiro. Logo no canto superior. Evitar elementos próximos às bordas." />
           </Section>
 
-          {/* Acervo */}
+        </div>
+
+        {/* DIREITA — acervo */}
+        <div style={{ flex: '0 0 50%', maxWidth: '50%', overflowY: 'auto', padding: '0 28px 32px' }}>
           <Section title="Acervo visual" icon="🖼" action={
             <>
               <input ref={assetsRef} type="file" multiple accept="image/*" style={{ display: 'none' }} onChange={handleAssetsUpload} />
@@ -526,6 +530,14 @@ export function DesignSystemPage({ brand, workspaceId, onSave, openOnboardingAt 
 
         </div>
       </div>
+
+      {/* Mobile: stack */}
+      <style>{`
+        @media (max-width: 768px) {
+          .brand-dna-split { flex-direction: column !important; overflow: visible !important; }
+          .brand-dna-split > div { flex: none !important; max-width: 100% !important; border-right: none !important; border-bottom: 1px solid rgba(7,13,31,.07); overflow-y: visible !important; }
+        }
+      `}</style>
     </div>
   )
 }
