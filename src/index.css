@@ -94,7 +94,7 @@ img { display: block; max-width: 100%; }
   height: 100vh;
   background: var(--surface);
   border-right: 1px solid var(--border);
-  display: flex;
+
   flex-direction: column;
   overflow-y: auto;
   overflow-x: hidden;
@@ -127,14 +127,14 @@ img { display: block; max-width: 100%; }
 .sidebar-logo {
   padding: 18px 16px 14px;
   border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; gap: 10px;
+ align-items: center; gap: 10px;
   flex-shrink: 0;
 }
 .sidebar-logo-icon {
   width: 32px; height: 32px;
   border-radius: var(--r10);
   background: var(--gradient);
-  display: flex; align-items: center; justify-content: center;
+ align-items: center; justify-content: center;
   font-size: 14px; color: white; flex-shrink: 0;
 }
 .sidebar-logo-text { font-size: 16px; font-weight: 700; color: var(--text-1); letter-spacing: -.4px; }
@@ -186,12 +186,12 @@ img { display: block; max-width: 100%; }
 
 .sidebar-footer {
   padding: 12px 14px; border-top: 1px solid var(--border);
-  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+ align-items: center; gap: 10px; flex-shrink: 0;
 }
 .avatar {
   width: 30px; height: 30px; border-radius: 50%;
   background: var(--gradient);
-  display: flex; align-items: center; justify-content: center;
+ align-items: center; justify-content: center;
   font-size: 12px; font-weight: 700; color: white; flex-shrink: 0;
 }
 
@@ -200,7 +200,7 @@ img { display: block; max-width: 100%; }
   flex: 1;
   min-width: 0;
   height: 100vh;
-  display: flex;
+
   flex-direction: column;
   overflow: hidden;
 }
@@ -220,7 +220,7 @@ img { display: block; max-width: 100%; }
 .topbar-menu-btn {
   width: 36px; height: 36px; border-radius: var(--r8);
   border: 1px solid var(--border-md); background: transparent;
-  display: flex; align-items: center; justify-content: center;
+ align-items: center; justify-content: center;
   color: var(--text-2); flex-shrink: 0;
 }
 
@@ -229,7 +229,7 @@ img { display: block; max-width: 100%; }
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  display: flex;
+
   flex-direction: column;
 }
 
@@ -252,7 +252,7 @@ img { display: block; max-width: 100%; }
 /* Páginas split — sem padding, sem scroll no container */
 .page-split {
   flex: 1;
-  display: flex;
+
   overflow: hidden;
   min-height: 0;
 }
@@ -266,7 +266,7 @@ img { display: block; max-width: 100%; }
   overflow-x: hidden;
   background: var(--surface-2);
   border-right: 1px solid var(--border);
-  display: flex;
+
   flex-direction: column;
   padding: 28px 24px;
   gap: 20px;
@@ -280,7 +280,7 @@ img { display: block; max-width: 100%; }
   overflow-y: auto;
   overflow-x: hidden;
   background: var(--surface);
-  display: flex;
+
   flex-direction: column;
 }
 @media (max-width: 768px) {
@@ -389,7 +389,7 @@ select.input { cursor: pointer; }
   border: 1px solid var(--border);
   border-radius: var(--r16);
   overflow: hidden;
-  display: flex; flex-direction: column;
+ flex-direction: column;
 }
 .post-card-image {
   width: 100%; aspect-ratio: 4/5;
@@ -404,7 +404,7 @@ select.input { cursor: pointer; }
 .post-card:hover .post-card-image img { transform: scale(1.03); }
 .post-card-body {
   padding: 12px 14px 0; flex: 1;
-  display: flex; flex-direction: column; gap: 8px;
+ flex-direction: column; gap: 8px;
 }
 .post-card-caption {
   font-size: 12px; color: var(--text-2); line-height: 1.6;
@@ -414,7 +414,7 @@ select.input { cursor: pointer; }
 .post-card-actions {
   padding: 12px 14px;
   border-top: 1px solid var(--border);
-  display: flex; gap: 8px; align-items: center;
+ gap: 8px; align-items: center;
   flex-shrink: 0;
 }
 .btn-approve-main {
@@ -473,7 +473,7 @@ select.input { cursor: pointer; }
 .modal-overlay {
   position: fixed; inset: 0;
   background: rgba(6,8,14,.9);
-  display: flex; align-items: center; justify-content: center;
+ align-items: center; justify-content: center;
   z-index: 1000; padding: 16px;
   backdrop-filter: blur(6px);
 }
@@ -512,7 +512,7 @@ select.input { cursor: pointer; }
 
 /* ── Generating banner ───────────────────────────────────── */
 .generating-banner {
-  display: flex; align-items: center; gap: 12px;
+ align-items: center; gap: 12px;
   padding: 12px 16px; margin-bottom: 20px;
   background: var(--gradient-soft);
   border: 1px solid rgba(247,37,133,.15);
@@ -523,7 +523,7 @@ select.input { cursor: pointer; }
 
 /* ── Empty state ─────────────────────────────────────────── */
 .empty-state {
-  display: flex; flex-direction: column;
+ flex-direction: column;
   align-items: center; justify-content: center;
   text-align: center; padding: 64px 24px; gap: 12px;
   flex: 1;
@@ -532,7 +532,7 @@ select.input { cursor: pointer; }
   width: 56px; height: 56px; border-radius: var(--r16);
   background: var(--gradient-soft);
   border: 1px solid rgba(247,37,133,.15);
-  display: flex; align-items: center; justify-content: center;
+ align-items: center; justify-content: center;
   font-size: 22px; margin-bottom: 4px;
 }
 .empty-state-title { font-size: 16px; font-weight: 600; color: var(--text-1); }
@@ -550,12 +550,12 @@ select.input { cursor: pointer; }
 }
 @media (max-width: 768px) { .bottom-nav { display: flex; } }
 .bottom-nav-items {
-  display: flex; align-items: center;
+ align-items: center;
   justify-content: space-around;
   width: 100%; padding: 0 4px;
 }
 .bottom-nav-item {
-  display: flex; flex-direction: column;
+ flex-direction: column;
   align-items: center; gap: 3px;
   cursor: pointer; padding: 6px 10px;
   border: none; background: transparent;
@@ -563,7 +563,7 @@ select.input { cursor: pointer; }
 }
 .bottom-nav-icon {
   width: 24px; height: 24px;
-  display: flex; align-items: center; justify-content: center;
+ align-items: center; justify-content: center;
   font-size: 16px; color: var(--text-4);
 }
 .bottom-nav-item.active .bottom-nav-icon { color: var(--pink); }
@@ -572,7 +572,7 @@ select.input { cursor: pointer; }
 .bottom-nav-cta {
   width: 44px; height: 44px; border-radius: 50%;
   background: var(--gradient);
-  display: flex; align-items: center; justify-content: center;
+ align-items: center; justify-content: center;
   color: white; font-size: 18px; border: none;
   cursor: pointer; flex-shrink: 0;
 }
