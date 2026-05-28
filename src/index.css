@@ -595,3 +595,70 @@ select.input { cursor: pointer; }
   0%, 100% { opacity: .4; }
   50%       { opacity: 1; }
 }
+
+/* ============================================================
+   MOBILE FIRST — regras responsivas globais
+   ============================================================ */
+
+/* Dashboard grid 4 colunas → 2 no mobile */
+@media (max-width: 768px) {
+  /* Stats grid */
+  .page { padding: 16px 16px 80px; }
+
+  /* Grids que precisam colapsar */
+  [style*="grid-template-columns: repeat(4"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  [style*="gridTemplateColumns: 'repeat(4"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Cards de post: 1 coluna */
+  .posts-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* Split Brand DNA */
+  .brand-dna-split {
+    flex-direction: column !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+  .brand-dna-split > div {
+    flex: none !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    height: auto !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border) !important;
+    overflow-y: visible !important;
+  }
+
+  /* Modal fullscreen no mobile */
+  .modal-overlay { padding: 0 !important; align-items: flex-end !important; }
+  .modal-overlay > div {
+    max-width: 100% !important;
+    border-radius: 20px 20px 0 0 !important;
+    max-height: 95vh !important;
+  }
+
+  /* Botões não ficam cortados */
+  .btn-full-mobile { width: 100% !important; }
+
+  /* Header do onboarding compacto */
+  .onboarding-header-stepper span { display: none !important; }
+
+  /* Campaign cards */
+  .campaign-item { flex-direction: column !important; }
+
+  /* Filtros com scroll horizontal */
+  .filter-row { flex-wrap: nowrap !important; overflow-x: auto !important; padding-bottom: 4px !important; -webkit-overflow-scrolling: touch !important; }
+  .filter-btn { flex-shrink: 0 !important; }
+}
+
+/* Telas muito pequenas */
+@media (max-width: 400px) {
+  .page { padding: 12px 12px 80px; }
+  .page-title { font-size: 17px !important; }
+}
