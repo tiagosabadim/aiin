@@ -120,23 +120,40 @@ export function LoginPage() {
 
         /* MOBILE — card tela cheia, esquerda some */
         @media (max-width: 768px) {
+          .login-root {
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0;
+          }
           .login-left { display: none; }
+          /* Logo centralizada no topo */
+          .login-mobile-header {
+            display: flex !important;
+            flex-direction: column;
+            align-items: center;
+            padding: 56px 24px 32px;
+            position: relative;
+            z-index: 2;
+          }
           .login-right {
             width: 100%;
-            padding: 0;
+            padding: 0 20px 40px;
             align-items: flex-start;
-            min-height: 100vh;
+            justify-content: center;
+            min-height: 0;
           }
           .login-card {
-            max-width: 100%;
-            min-height: 100vh;
-            border-radius: 0;
-            padding: 48px 24px 40px;
-            display: flex;
-            flex-direction: column;
+            max-width: 440px;
+            margin: 0 auto;
+            border-radius: 20px;
+            padding: 36px 24px;
+            box-shadow: 0 20px 60px rgba(0,0,0,.5);
           }
-          .login-card-inner { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+          .login-card-inner { display: block; }
         }
+        /* Header mobile escondido no desktop */
+        .login-mobile-header { display: none; }
 
         /* Input focus */
         .login-input {
@@ -185,6 +202,21 @@ export function LoginPage() {
         <div style={{ position:'absolute', bottom:'-5%', right:'30%', width:600, height:400, zIndex:1, background:'radial-gradient(ellipse, rgba(123,44,255,.4) 0%, transparent 65%)', pointerEvents:'none' }} />
         <div style={{ position:'absolute', bottom:'0', right:'15%', width:400, height:300, zIndex:1, background:'radial-gradient(ellipse, rgba(247,37,133,.25) 0%, transparent 65%)', pointerEvents:'none' }} />
 
+        {/* HEADER MOBILE — logo centralizada no topo (só aparece no mobile) */}
+        <div className="login-mobile-header">
+          <img src="/logo.png" alt="aiin" style={{ height:64, objectFit:'contain', marginBottom:14 }}
+            onError={e => {
+              const el = e.target as HTMLImageElement
+              el.style.display = 'none'
+              const s = document.createElement('span')
+              s.textContent = 'aiin'
+              Object.assign(s.style, { fontSize:'40px', fontWeight:'800', background:'linear-gradient(135deg,#FF6A00,#F72585,#7B2CFF)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' })
+              el.parentElement?.appendChild(s)
+            }}
+          />
+          <p style={{ fontSize:14, color:'rgba(255,255,255,.6)', textAlign:'center' }}>Crie. Publique. Cresça.</p>
+        </div>
+
         {/* ESQUERDA */}
         <div className="login-left">
           <div className="login-logo-mb">
@@ -229,11 +261,6 @@ export function LoginPage() {
         <div className="login-right">
           <div className="login-card">
             <div className="login-card-inner">
-
-              {/* Mobile: logo no topo do card */}
-              <div style={{ display:'none' }} className="login-mobile-logo">
-                <img src="/logo.png" alt="aiin" style={{ height:48, marginBottom:32, display:'block' }} />
-              </div>
 
               <h2 style={{ fontSize:28, fontWeight:700, color:'#070D1F', letterSpacing:'-.5px', marginBottom:6, textAlign:'center' }}>
                 {isSignup ? 'Criar sua conta' : 'Entrar no aiin'}
