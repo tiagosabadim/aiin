@@ -58,7 +58,7 @@ export default function App() {
       {route === 'briefing'   && <BriefingPage  {...ctx} />}
       {route === 'campaigns'  && <CampaignsPage {...ctx} />}
       {route === 'posts'      && <PostsPage      workspaceId={workspace.id} userId={user.id} />}
-      {route === 'schedule'   && <SchedulePage   workspaceId={workspace.id} />}
+      {route === 'schedule'   && <SchedulePage   workspaceId={workspace.id} navigate={navigate} />}
       {route === 'insights'   && <InsightsPage workspaceId={workspace.id} brand={brand} />}
       {route === 'design'     && <DesignSystemPage brand={brand} workspaceId={workspace.id} onSave={refetch} openOnboardingAt={openOnboardingAt} />}
       {route === 'settings'   && <SettingsPage   workspace={workspace} brand={brand} />}

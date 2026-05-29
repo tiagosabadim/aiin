@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 
-interface Props { workspaceId: string }
+interface Props { workspaceId: string; navigate: (r: string) => void }
 
 interface ScheduledPost {
   id: string
@@ -27,7 +27,7 @@ const STATUS: Record<string, { dot: string; label: string; bg: string; color: st
   external:   { dot: '#185FA5', label: 'Externo',     bg: 'rgba(24,95,165,.1)',  color: '#185FA5' },
 }
 
-export function SchedulePage({ workspaceId }: Props) {
+export function SchedulePage({ workspaceId, navigate }: Props) {
   const [posts, setPosts]           = useState<ScheduledPost[]>([])
   const [loading, setLoading]       = useState(true)
   const [now]                       = useState(new Date())
@@ -323,7 +323,7 @@ export function SchedulePage({ workspaceId }: Props) {
                       ✏️ Editar horário
                     </button>
                     {selectedPost.output?.id && (
-                      <button style={{ height: 44, width: '100%', background: 'transparent', border: '1px solid rgba(7,13,31,.12)', borderRadius: 10, color: '#374151', fontSize: 14, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                      <button onClick={() => navigate('posts')} style={{ height: 44, width: '100%', background: 'transparent', border: '1px solid rgba(7,13,31,.12)', borderRadius: 10, color: '#374151', fontSize: 14, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                         ↗ Ver post
                       </button>
                     )}
@@ -338,12 +338,6 @@ export function SchedulePage({ workspaceId }: Props) {
               </div>
             )}
 
-            {/* Info publicação automática */}
-            <div style={{ background: 'rgba(247,37,133,.04)', border: '1px solid rgba(247,37,133,.12)', borderRadius: 14, padding: '14px 16px' }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#070D1F', marginBottom: 4 }}>✦ Publicação automática</div>
-              <div style={{ fontSize: 12, color: '#6B7280', lineHeight: 1.6 }}>Posts são publicados automaticamente via Instagram Graph API.</div>
-              <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>Configure o token em Configurações.</div>
-            </div>
           </div>
         </div>
       )}
