@@ -434,8 +434,8 @@ export function PostsPage({ workspaceId, userId }: Props) {
               </div>
             )
           })}
-          </div>{/* posts-grid */}
-        </div>{/* container cinza */}
+          </div>
+        </div>
       )}
     </div>
   )
