@@ -33,7 +33,7 @@ const FORMATS = [
     color: '#F72585',
     bg: 'rgba(247,37,133,.07)',
     border: 'rgba(247,37,133,.2)',
-    description: 'Sequência de 5 slides. Ideal para tutoriais, listas, antes/depois e conteúdo educativo.',
+    description: 'Sequência de 2 a 5 slides. Ideal para tutoriais, listas, antes/depois e conteúdo educativo.',
     fields: ['objective', 'slides_hint', 'context', 'hashtags', 'refs', 'date'],
   },
   {
@@ -72,6 +72,7 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
   const [objective, setObjective]     = useState('')
   const [context, setContext]         = useState('')
   const [slidesHint, setSlidesHint]   = useState('')
+  const [slideCount, setSlideCount]   = useState(5)
   const [cta, setCta]                 = useState('')
   const [videoTitle, setVideoTitle]   = useState('')
   const [hashtags, setHashtags]       = useState('')
@@ -84,6 +85,7 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
     setSelected(fmt)
     setError(null)
     setSuccess(false)
+    setSlideCount(5)
     setTitle(''); setObjective(''); setContext(''); setSlidesHint('')
     setCta(''); setVideoTitle(''); setHashtags(''); setRefs([])
     setScheduleDate(''); setScheduleTime('18:00')
@@ -107,6 +109,7 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
       // Montar extra_context completo
       const parts: string[] = []
       if (context)    parts.push(context)
+      if (selected.id === 'carrossel_5') parts.unshift(`Número de slides: ${slideCount}`)
       if (slidesHint) parts.push(`Estrutura dos slides: ${slidesHint}`)
       if (cta)        parts.push(`CTA: ${cta}`)
       if (videoTitle) parts.push(`Título do vídeo: ${videoTitle}`)
@@ -130,6 +133,7 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
         inputPayload: {
           title: title || selected.label,
           objective, tone_of_voice: brand.tone_of_voice,
+          slide_count: selected.id === 'carrossel_5' ? slideCount : undefined,
           extra_context: parts.join('\n'),
           hashtags: hashtags.split(',').map(h => h.trim()).filter(Boolean),
           reference_urls: refUrls,
@@ -226,7 +230,7 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
         ) : (
           <>
             {/* Header sticky */}
-            <div style={{ position: 'sticky', top: 0, zIndex: 10, background: '#fff', borderBottom: '1px solid rgba(7,13,31,.07)', padding: '16px 28px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+            <div style={{ position: 'sticky', top: 0, zIndex: 10, background: '#fff', borderBottom: '1px solid rgba(7,13,31,.07)', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
               <div style={{ width: 36, height: 36, borderRadius: 10, background: selected.bg, border: `1px solid ${selected.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: selected.color }}>
                 {selected.icon}
               </div>
@@ -237,7 +241,7 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
             </div>
 
             {/* Form */}
-            <div style={{ padding: '24px 28px 120px', display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 600 }}>
+            <div style={{ padding: '16px 20px 120px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
               {/* Título do post */}
               <F label="Título / tema do post" required>
@@ -269,12 +273,22 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
                 </F>
               )}
 
-              {/* Estrutura dos slides (Carrossel) */}
+              {/* Número de slides + estrutura (Carrossel) */}
               {selected.fields.includes('slides_hint') && (
-                <F label="Estrutura dos slides (opcional)">
-                  <textarea value={slidesHint} onChange={e => setSlidesHint(e.target.value)} className="input" rows={3} style={{ resize: 'none' }} placeholder="ex: Slide 1: título impactante / Slides 2-4: dicas / Slide 5: CTA com desconto" />
-                  <div className="input-hint">A IA vai seguir essa estrutura para criar os slides</div>
-                </F>
+                <>
+                  <F label="Quantos slides?" required>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {[2,3,4,5].map(n => (
+                        <button key={n} onClick={() => setSlideCount(n)} style={{ flex:1, height:44, cursor:'pointer', fontFamily:'inherit', borderRadius:10, fontSize:15, fontWeight:slideCount===n?700:500, border:`1.5px solid ${slideCount===n?'#F72585':'rgba(7,13,31,.1)'}`, background:slideCount===n?'rgba(247,37,133,.06)':'#fff', color:slideCount===n?'#F72585':'#6B7280', transition:'all .12s' }}>{n}</button>
+                      ))}
+                    </div>
+                    <div className="input-hint">Máximo 5 slides por carrossel</div>
+                  </F>
+                  <F label="Estrutura dos slides (opcional)">
+                    <textarea value={slidesHint} onChange={e => setSlidesHint(e.target.value)} className="input" rows={3} style={{ resize: 'none' }} placeholder={`ex: Slide 1: título / Slides 2-${slideCount-1}: dicas / Slide ${slideCount}: CTA`} />
+                    <div className="input-hint">A IA vai seguir essa estrutura para criar os slides</div>
+                  </F>
+                </>
               )}
 
               {/* CTA (Story) */}
@@ -330,7 +344,7 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
             </div>
 
             {/* Botão flutuante fixo */}
-            <div style={{ position: 'absolute', bottom: 0, right: 0, left: '40%', background: 'linear-gradient(transparent, #fff 35%)', padding: '20px 28px 28px', pointerEvents: 'none' }}>
+            <div style={{ position: 'absolute', bottom: 0, right: 0, left: '40%', background: 'linear-gradient(transparent, #fff 35%)', padding: '20px 20px 28px', pointerEvents: 'none' }}>
               <div style={{ pointerEvents: 'all' }}>
                 {error && (
                   <div style={{ marginBottom: 10, padding: '8px 14px', background: '#FCEBEB', border: '1px solid rgba(226,75,74,.2)', borderRadius: 8, fontSize: 12, color: '#E24B4A' }}>{error}</div>
@@ -357,10 +371,10 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
 
 function F({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
-    <div>
-      <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 7 }}>
+    <div style={{ background:'#fff', border:'1px solid rgba(7,13,31,.08)', borderRadius:14, padding:'14px 16px' }}>
+      <div style={{ fontSize:11, fontWeight:600, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'.05em', marginBottom:10 }}>
         {label}{required && <span style={{ color: '#F72585', marginLeft: 3 }}>*</span>}
-      </label>
+      </div>
       {children}
     </div>
   )
