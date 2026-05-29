@@ -383,41 +383,36 @@ export function DesignSystemPage({ brand, workspaceId, onSave, openOnboardingAt 
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
 
-      {/* Header — subtítulo fica dentro do card, botões à direita */}
-      <div style={{ padding: '16px 24px', borderBottom: '1px solid rgba(7,13,31,.07)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-        <div>
-          <p style={{ fontSize: 12, color: '#9CA3AF' }}>Identidade visual usada pela IA para criar posts coerentes</p>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={resetVisualContext} className="btn btn-md" style={{ border: '1px solid rgba(226,75,74,.25)', background: 'transparent', color: '#E24B4A' }}>
-            ↺ Revalidar estilo
-          </button>
-          <button onClick={regenerateDNA} disabled={genDNA} className="btn btn-md" style={{ border: '1px solid rgba(7,13,31,.12)', background: 'transparent', color: '#374151', opacity: genDNA ? .5 : 1 }}>
-            {genDNA ? '✦ Gerando...' : '✦ Regenerar DNA'}
-          </button>
-          <button onClick={save} disabled={saving} className="btn btn-primary btn-md" style={{ background: saved ? '#1D9E75' : 'linear-gradient(135deg,#FF6A00,#F72585,#7B2CFF)' }}>
-            {saving ? 'Salvando...' : saved ? '✓ Salvo!' : 'Salvar'}
-          </button>
-        </div>
-      </div>
+      {/* Split — dois cards brancos com cinza entre */}
+      <div className="page-split brand-dna-split">
 
-      {/* Status visual aprovado */}
-      {(brand as any).visual_context_approved && (brand as any).visual_context_sample && (
-        <div style={{ margin: '12px 28px 0', padding: '10px 14px', background: '#E1F5EE', border: '1px solid rgba(29,158,117,.2)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-          <img src={(brand as any).visual_context_sample} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#1D9E75' }}>✓ Estilo visual validado</div>
-            <div style={{ fontSize: 11, color: '#6B7280' }}>A IA está gerando com sua identidade visual aprovada.</div>
-          </div>
-        </div>
-      )}
-
-      {/* Split desktop / stack mobile */}
-      <div className="brand-dna-split" style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
         {/* ESQUERDA — identidade */}
-        <div style={{ flex: '0 0 50%', maxWidth: '50%', overflowY: 'auto', padding: '0 28px 32px', borderRight: '1px solid var(--border)' }}>
+        <div className="page-split-left" style={{ flex: '0 0 calc(50% - 8px)', maxWidth: 'calc(50% - 8px)' }}>
+
+          {/* Header do card */}
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(7,13,31,.07)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+            <p style={{ fontSize: 12, color: '#9CA3AF' }}>Identidade visual da marca</p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={resetVisualContext} className="btn btn-sm" style={{ border: '1px solid rgba(226,75,74,.25)', background: 'transparent', color: '#E24B4A' }}>↺ Revalidar</button>
+              <button onClick={regenerateDNA} disabled={genDNA} className="btn btn-sm" style={{ border: '1px solid rgba(7,13,31,.12)', background: 'transparent', color: '#374151', opacity: genDNA ? .5 : 1 }}>{genDNA ? '✦ Gerando...' : '✦ Regenerar DNA'}</button>
+              <button onClick={save} disabled={saving} className="btn btn-primary btn-sm" style={{ background: saved ? '#1D9E75' : undefined }}>{saving ? 'Salvando...' : saved ? '✓ Salvo!' : 'Salvar'}</button>
+            </div>
+          </div>
+
+          {/* Status visual */}
+          {(brand as any).visual_context_approved && (brand as any).visual_context_sample && (
+            <div style={{ margin: '12px 20px 0', padding: '10px 12px', background: '#E1F5EE', border: '1px solid rgba(29,158,117,.2)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+              <img src={(brand as any).visual_context_sample} alt="" style={{ width: 36, height: 36, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#1D9E75' }}>✓ Estilo visual validado</div>
+                <div style={{ fontSize: 11, color: '#6B7280' }}>A IA está gerando com sua identidade visual aprovada.</div>
+              </div>
+            </div>
+          )}
+
+          <div style={{ overflowY: 'auto', padding: '16px 20px 32px', flex: 1 }}>
 
           {/* Logo */}
           <Section title="Logo" icon="★">
@@ -496,10 +491,16 @@ export function DesignSystemPage({ brand, workspaceId, onSave, openOnboardingAt 
               placeholder="ex: Artes minimalistas com muito respiro. Logo no canto superior. Evitar elementos próximos às bordas." />
           </Section>
 
-        </div>
+          </div>{/* fim scroll esquerdo */}
+        </div>{/* fim card esquerdo */}
 
         {/* DIREITA — acervo */}
-        <div style={{ flex: '0 0 50%', maxWidth: '50%', overflowY: 'auto', padding: '0 28px 32px' }}>
+        <div className="page-split-right" style={{ flex: '0 0 calc(50% - 8px)', maxWidth: 'calc(50% - 8px)' }}>
+          {/* Header do card */}
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(7,13,31,.07)', flexShrink: 0 }}>
+            <p style={{ fontSize: 12, color: '#9CA3AF' }}>Fotos e referências usadas pela IA</p>
+          </div>
+          <div style={{ overflowY: 'auto', padding: '16px 20px 32px', flex: 1 }}>
           <Section title="Acervo visual" icon="🖼" action={
             <>
               <input ref={assetsRef} type="file" multiple accept="image/*" style={{ display: 'none' }} onChange={handleAssetsUpload} />
@@ -527,16 +528,9 @@ export function DesignSystemPage({ brand, workspaceId, onSave, openOnboardingAt 
             )}
           </Section>
 
-        </div>
-      </div>
-
-      {/* Mobile: stack */}
-      <style>{`
-        @media (max-width: 768px) {
-          .brand-dna-split { flex-direction: column !important; overflow: visible !important; }
-          .brand-dna-split > div { flex: none !important; max-width: 100% !important; border-right: none !important; border-bottom: 1px solid rgba(7,13,31,.07); overflow-y: visible !important; }
-        }
-      `}</style>
+          </div>{/* fim scroll direito */}
+        </div>{/* fim card direito */}
+      </div>{/* fim page-split */}
     </div>
   )
 }
