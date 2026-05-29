@@ -314,18 +314,27 @@ export function SchedulePage({ workspaceId, navigate }: Props) {
                 {/* Ações */}
                 {!editingTime && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <button onClick={() => { const t = new Date(selectedPost.scheduled_at); setReschedDate(t.toISOString().split('T')[0]); setReschedTime(t.toTimeString().slice(0,5)); setEditingTime(true) }}
-                      style={{ height: 44, width: '100%', background: 'linear-gradient(135deg,#FF6A00,#F72585,#7B2CFF)', border: 'none', borderRadius: 10, color: 'white', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                      🔄 Reagendar
-                    </button>
-                    <button onClick={() => { const t = new Date(selectedPost.scheduled_at); setReschedDate(t.toISOString().split('T')[0]); setReschedTime(t.toTimeString().slice(0,5)); setEditingTime(true) }}
-                      style={{ height: 44, width: '100%', background: 'transparent', border: '1px solid rgba(7,13,31,.12)', borderRadius: 10, color: '#374151', fontSize: 14, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                      ✏️ Editar horário
-                    </button>
-                    {selectedPost.output?.id && (
-                      <button onClick={() => navigate('posts')} style={{ height: 44, width: '100%', background: 'transparent', border: '1px solid rgba(7,13,31,.12)', borderRadius: 10, color: '#374151', fontSize: 14, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                    {/* Publicado: só Ver post */}
+                    {selectedPost.status === 'published' ? (
+                      <button onClick={() => navigate('posts')} style={{ height: 44, width: '100%', background: 'linear-gradient(135deg,#FF6A00,#F72585,#7B2CFF)', border: 'none', borderRadius: 10, color: 'white', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                         ↗ Ver post
                       </button>
+                    ) : (
+                      <>
+                        <button onClick={() => { const t = new Date(selectedPost.scheduled_at); setReschedDate(t.toISOString().split('T')[0]); setReschedTime(t.toTimeString().slice(0,5)); setEditingTime(true) }}
+                          style={{ height: 44, width: '100%', background: 'linear-gradient(135deg,#FF6A00,#F72585,#7B2CFF)', border: 'none', borderRadius: 10, color: 'white', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                          🔄 Reagendar
+                        </button>
+                        <button onClick={() => { const t = new Date(selectedPost.scheduled_at); setReschedDate(t.toISOString().split('T')[0]); setReschedTime(t.toTimeString().slice(0,5)); setEditingTime(true) }}
+                          style={{ height: 44, width: '100%', background: 'transparent', border: '1px solid rgba(7,13,31,.12)', borderRadius: 10, color: '#374151', fontSize: 14, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                          ✏️ Editar horário
+                        </button>
+                        {selectedPost.output?.id && (
+                          <button onClick={() => navigate('posts')} style={{ height: 44, width: '100%', background: 'transparent', border: '1px solid rgba(7,13,31,.12)', borderRadius: 10, color: '#374151', fontSize: 14, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                            ↗ Ver post
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
