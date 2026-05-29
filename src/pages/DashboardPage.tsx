@@ -144,7 +144,7 @@ export function DashboardPage({ workspace, brand, subscription, credits, navigat
     <div className="page" style={{ overflowY: 'auto', paddingBottom: 40 }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 10 }}>
+      <div className="page-header">
         <div>
           <h1 style={{ fontSize: 26, fontWeight: 700, color: '#070D1F', letterSpacing: '-.4px', marginBottom: 4 }}>Olá! 👋</h1>
           <p style={{ fontSize: 14, color: '#6B7280' }}>

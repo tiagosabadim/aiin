@@ -240,13 +240,13 @@ img { display: block; max-width: 100%; }
 
 /* Páginas normais com scroll e padding */
 .page {
-  padding: 28px 32px;
+  padding: 24px 28px;
   flex: 1;
   overflow-y: auto;
   min-height: 0;
 }
 @media (max-width: 768px) {
-  .page { padding: 16px; }
+  .page { padding: 14px 16px; }
 }
 
 /* Páginas split — sem padding, sem scroll no container */
@@ -256,7 +256,7 @@ img { display: block; max-width: 100%; }
   overflow: hidden;
   min-height: 0;
   gap: 16px;
-  padding: 16px;
+  padding: 16px 28px 28px;
   background: var(--bg);
   box-sizing: border-box;
 }
@@ -306,7 +306,15 @@ img { display: block; max-width: 100%; }
   color: var(--text-1); letter-spacing: -.4px;
   line-height: 1.2; margin-bottom: 4px;
 }
-.page-sub { font-size: 13px; color: var(--text-3); line-height: 1.5; }
+.page-sub { font-size: 13px; color: var(--text-3); line-height: 1.5; margin-bottom: 0; }
+
+/* Header padrão de página — título + ações */
+.page-header {
+  display: flex; align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap; gap: 12px;
+  margin-bottom: 20px;
+}
 @media (max-width: 768px) {
   .page-title { font-size: 19px; }
 }

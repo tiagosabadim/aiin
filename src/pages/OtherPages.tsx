@@ -386,7 +386,7 @@ export function DesignSystemPage({ brand, workspaceId, onSave, openOnboardingAt 
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
 
       {/* Header página — título + subtítulo + botões no cinza */}
-      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', padding:'20px 28px 16px', flexShrink:0, flexWrap:'wrap', gap:10 }}>
+      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', padding:'24px 28px 16px', flexShrink:0, flexWrap:'wrap', gap:10 }}>
         <div>
           <h1 className="page-title">Brand DNA</h1>
           <p className="page-sub">Identidade visual usada pela IA para criar posts coerentes</p>

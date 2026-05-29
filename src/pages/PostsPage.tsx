@@ -256,7 +256,7 @@ export function PostsPage({ workspaceId, userId }: Props) {
       )}
 
       {/* Header */}
-      <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+      <div className="page-header">
         <div>
           <h1 className="page-title">Aprovar conteúdo</h1>
           <p className="page-sub">

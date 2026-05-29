@@ -199,7 +199,7 @@ export function SchedulePage({ workspaceId, navigate }: Props) {
       )}
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 10 }}>
+      <div className="page-header">
         <div>
           <h1 className="page-title">Agenda</h1>
           <p className="page-sub">{nScheduled} agendado{nScheduled !== 1 ? 's' : ''} · {nPublished} publicado{nPublished !== 1 ? 's' : ''}</p>
