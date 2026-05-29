@@ -285,25 +285,25 @@ export function PostsPage({ workspaceId, userId }: Props) {
         </div>
       )}
 
-      {/* Filtros */}
-      <div className="filter-row">
-        {FILTERS.map(([val, label, count]) => (
-          <button key={val} onClick={() => setFilter(val)} className={`filter-btn ${filter === val ? 'active' : ''}`}>
-            {label}
-            {count > 0 && <span className="filter-count">{count}</span>}
-          </button>
-        ))}
-      </div>
+      {/* Card branco: filtros + grid */}
+      <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r16)', padding:'16px 20px', display:'flex', flexDirection:'column', gap:16 }}>
 
-      {/* Grid — fundo cinza, cards brancos */}
-      {loading ? (
-        <div style={{ background:'var(--bg)', padding:'16px', borderRadius:'var(--r16)', marginTop:4 }}>
+        {/* Filtros */}
+        <div className="filter-row" style={{ marginBottom:0 }}>
+          {FILTERS.map(([val, label, count]) => (
+            <button key={val} onClick={() => setFilter(val)} className={`filter-btn ${filter === val ? 'active' : ''}`}>
+              {label}
+              {count > 0 && <span className="filter-count">{count}</span>}
+            </button>
+          ))}
+        </div>
+
+        {/* Grid */}
+        {loading ? (
           <div className="posts-grid">
             {[1, 2, 3].map(i => <SkeletonCard key={i} />)}
           </div>
-        </div>
-      ) : (
-        <div style={{ background:'var(--bg)', padding:'16px', borderRadius:'var(--r16)', marginTop:4 }}>
+        ) : (
           <div className="posts-grid">
           {processing > 0 && Array.from({ length: processing }).map((_, i) => <SkeletonCard key={`sk-${i}`} />)}
 
@@ -435,8 +435,9 @@ export function PostsPage({ workspaceId, userId }: Props) {
             )
           })}
           </div>
-        </div>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
