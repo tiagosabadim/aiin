@@ -46,7 +46,7 @@ export function LoginPage() {
     width: '100%', height: 52, paddingLeft: 44, paddingRight: 44,
     border: `1.5px solid ${focused ? '#F72585' : 'rgba(7,13,31,.12)'}`,
     borderRadius: 12, fontSize: 15, fontFamily: 'inherit',
-    outline: 'none', boxSizing: 'border-box', background: '#FAFAFA',
+    outline: 'none', boxSizing: 'border-box', background: '#FFFFFF',
     color: '#070D1F', transition: 'border-color .15s',
   })
 
@@ -107,14 +107,14 @@ export function LoginPage() {
       </div>
 
       {/* ── DIREITA — card flutuante ── */}
-      <div style={{ width: 540, flexShrink: 0, position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 80px 48px 20px' }}>
+      <div style={{ width: 660, flexShrink: 0, position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 80px 40px 20px' }}>
 
-        <div style={{ width: '100%', maxWidth: 420, background: 'rgba(255,255,255,.98)', borderRadius: 20, padding: '40px 36px', boxShadow: '0 32px 80px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.08)' }}>
+        <div style={{ width: '100%', maxWidth: 500, background: '#ffffff', borderRadius: 20, padding: '44px 44px', boxShadow: '0 20px 60px rgba(0,0,0,.3)' }}>
 
-          <h2 style={{ fontSize: 28, fontWeight: 700, color: '#070D1F', letterSpacing: '-.5px', marginBottom: 6, textAlign: 'center' }}>
+          <h2 style={{ fontSize: 30, fontWeight: 700, color: '#070D1F', letterSpacing: '-.5px', marginBottom: 6, textAlign: 'center' }}>
             {isSignup ? 'Criar sua conta' : 'Entrar no aiin'}
           </h2>
-          <p style={{ fontSize: 14, color: '#9CA3AF', textAlign: 'center', marginBottom: 32 }}>
+          <p style={{ fontSize: 14, color: '#6B7280', textAlign: 'center', marginBottom: 32 }}>
             {isSignup ? 'Comece a criar posts com IA hoje.' : 'Bem-vindo de volta.'}
           </p>
 
@@ -182,7 +182,7 @@ export function LoginPage() {
               <button
                 onClick={submit}
                 disabled={loading || !email || !password}
-                style={{ width: '100%', height: 52, background: 'linear-gradient(135deg,#FF6A00,#F72585,#7B2CFF)', border: 'none', borderRadius: 14, color: 'white', fontSize: 16, fontWeight: 700, cursor: loading || !email || !password ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: '0 4px 20px rgba(247,37,133,.35)', opacity: loading || !email || !password ? .5 : 1, transition: 'opacity .15s', marginTop: 4 }}>
+                style={{ width: '100%', height: 52, background: 'linear-gradient(135deg,#FF6A00,#F72585,#7B2CFF)', border: 'none', borderRadius: 14, color: 'white', fontSize: 16, fontWeight: 700, cursor: loading || !email || !password ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: '0 4px 20px rgba(247,37,133,.35)', opacity: loading ? .7 : 1, transition: 'opacity .15s', marginTop: 4 }}>
                 {loading
                   ? <><div style={{ width: 18, height: 18, border: '2.5px solid rgba(255,255,255,.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 1s linear infinite' }} /> Entrando...</>
                   : isSignup ? 'Criar conta →' : 'Entrar →'
