@@ -385,21 +385,24 @@ export function DesignSystemPage({ brand, workspaceId, onSave, openOnboardingAt 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
 
+      {/* Header página — título + subtítulo + botões no cinza */}
+      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', padding:'20px 28px 16px', flexShrink:0, flexWrap:'wrap', gap:10 }}>
+        <div>
+          <h1 className="page-title">Brand DNA</h1>
+          <p className="page-sub">Identidade visual usada pela IA para criar posts coerentes</p>
+        </div>
+        <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+          <button onClick={resetVisualContext} className="btn btn-md" style={{ border:'1px solid rgba(226,75,74,.25)', background:'transparent', color:'#E24B4A' }}>↺ Revalidar estilo</button>
+          <button onClick={regenerateDNA} disabled={genDNA} className="btn btn-md" style={{ border:'1px solid rgba(7,13,31,.12)', background:'transparent', color:'#374151', opacity:genDNA?.5:1 }}>{genDNA?'✦ Gerando...':'✦ Regenerar DNA'}</button>
+          <button onClick={save} disabled={saving} className="btn btn-primary btn-md" style={{ background:saved?'#1D9E75':undefined }}>{saving?'Salvando...':saved?'✓ Salvo!':'Salvar'}</button>
+        </div>
+      </div>
+
       {/* Split — dois cards brancos com cinza entre */}
       <div className="page-split brand-dna-split">
 
         {/* ESQUERDA — identidade */}
         <div className="page-split-left" style={{ flex: '0 0 calc(50% - 8px)', maxWidth: 'calc(50% - 8px)' }}>
-
-          {/* Header do card */}
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(7,13,31,.07)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-            <p style={{ fontSize: 12, color: '#9CA3AF' }}>Identidade visual da marca</p>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={resetVisualContext} className="btn btn-sm" style={{ border: '1px solid rgba(226,75,74,.25)', background: 'transparent', color: '#E24B4A' }}>↺ Revalidar</button>
-              <button onClick={regenerateDNA} disabled={genDNA} className="btn btn-sm" style={{ border: '1px solid rgba(7,13,31,.12)', background: 'transparent', color: '#374151', opacity: genDNA ? .5 : 1 }}>{genDNA ? '✦ Gerando...' : '✦ Regenerar DNA'}</button>
-              <button onClick={save} disabled={saving} className="btn btn-primary btn-sm" style={{ background: saved ? '#1D9E75' : undefined }}>{saving ? 'Salvando...' : saved ? '✓ Salvo!' : 'Salvar'}</button>
-            </div>
-          </div>
 
           {/* Status visual */}
           {(brand as any).visual_context_approved && (brand as any).visual_context_sample && (

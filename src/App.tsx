@@ -72,9 +72,6 @@ export default function App() {
       {route === 'insights'   && <InsightsPage workspaceId={workspace.id} brand={brand} />}
       {route === 'design' && (
         <div style={{ display:'flex', flexDirection:'column', flex:1, minHeight:0, overflow:'hidden' }}>
-          <div style={{ padding:'20px 28px 0', flexShrink:0 }}>
-            <h1 className="page-title">Brand DNA</h1>
-          </div>
           <DesignSystemPage brand={brand} workspaceId={workspace.id} onSave={refetch} openOnboardingAt={openOnboardingAt} />
         </div>
       )}
