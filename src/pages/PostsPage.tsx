@@ -297,11 +297,14 @@ export function PostsPage({ workspaceId, userId }: Props) {
 
       {/* Grid — fundo cinza, cards brancos */}
       {loading ? (
-        <div className="posts-grid" style={{ background:'var(--bg)', padding:'16px', borderRadius:'var(--r16)', marginTop:4 }}>
-          {[1, 2, 3].map(i => <SkeletonCard key={i} />)}
+        <div style={{ background:'var(--bg)', padding:'16px', borderRadius:'var(--r16)', marginTop:4 }}>
+          <div className="posts-grid">
+            {[1, 2, 3].map(i => <SkeletonCard key={i} />)}
+          </div>
         </div>
       ) : (
-        <div className="posts-grid" style={{ background:'var(--bg)', padding:'16px', borderRadius:'var(--r16)', marginTop:4 }}>
+        <div style={{ background:'var(--bg)', padding:'16px', borderRadius:'var(--r16)', marginTop:4 }}>
+          <div className="posts-grid">
           {processing > 0 && Array.from({ length: processing }).map((_, i) => <SkeletonCard key={`sk-${i}`} />)}
 
           {filtered.length === 0 && processing === 0 && (
@@ -431,7 +434,8 @@ export function PostsPage({ workspaceId, userId }: Props) {
               </div>
             )
           })}
-        </div>
+          </div>{/* posts-grid */}
+        </div>{/* container cinza */}
       )}
     </div>
   )
