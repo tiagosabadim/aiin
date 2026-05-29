@@ -435,7 +435,6 @@ export function PostsPage({ workspaceId, userId }: Props) {
             )
           })}
           </div>
-          </div>
         )}
       </div>
     </div>
