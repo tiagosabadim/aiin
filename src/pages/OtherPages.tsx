@@ -386,10 +386,10 @@ export function DesignSystemPage({ brand, workspaceId, onSave, openOnboardingAt 
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
       {/* Header fixo */}
-      <div style={{ padding: '20px 28px 16px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+      <div style={{ padding: '20px 28px 16px', background: 'var(--surface-2)', borderBottom: '1px solid var(--border)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: '#070D1F', letterSpacing: '-.3px', marginBottom: 2 }}>Brand DNA</h1>
-          <p style={{ fontSize: 12, color: '#6B7280' }}>Identidade visual usada pela IA para criar posts coerentes</p>
+          <h1 className="page-title">Brand DNA</h1>
+          <p className="page-sub">Identidade visual usada pela IA para criar posts coerentes</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={resetVisualContext} style={{ height: 34, padding: '0 14px', border: '1px solid rgba(226,75,74,.25)', borderRadius: 8, background: 'transparent', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', color: '#E24B4A' }}>
