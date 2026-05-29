@@ -385,20 +385,19 @@ export function DesignSystemPage({ brand, workspaceId, onSave, openOnboardingAt 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-      {/* Header fixo */}
-      <div style={{ padding: '20px 28px 16px', background: 'var(--surface-2)', borderBottom: '1px solid var(--border)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+      {/* Header — subtítulo fica dentro do card, botões à direita */}
+      <div style={{ padding: '16px 24px', borderBottom: '1px solid rgba(7,13,31,.07)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
         <div>
-          <h1 className="page-title">Brand DNA</h1>
-          <p className="page-sub">Identidade visual usada pela IA para criar posts coerentes</p>
+          <p style={{ fontSize: 12, color: '#9CA3AF' }}>Identidade visual usada pela IA para criar posts coerentes</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={resetVisualContext} style={{ height: 34, padding: '0 14px', border: '1px solid rgba(226,75,74,.25)', borderRadius: 8, background: 'transparent', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', color: '#E24B4A' }}>
+          <button onClick={resetVisualContext} className="btn btn-md" style={{ border: '1px solid rgba(226,75,74,.25)', background: 'transparent', color: '#E24B4A' }}>
             ↺ Revalidar estilo
           </button>
-          <button onClick={regenerateDNA} disabled={genDNA} style={{ height: 34, padding: '0 14px', border: '1px solid rgba(7,13,31,.12)', borderRadius: 8, background: 'transparent', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', color: '#374151', opacity: genDNA ? .5 : 1 }}>
+          <button onClick={regenerateDNA} disabled={genDNA} className="btn btn-md" style={{ border: '1px solid rgba(7,13,31,.12)', background: 'transparent', color: '#374151', opacity: genDNA ? .5 : 1 }}>
             {genDNA ? '✦ Gerando...' : '✦ Regenerar DNA'}
           </button>
-          <button onClick={save} disabled={saving} style={{ height: 34, padding: '0 16px', background: saved ? '#1D9E75' : 'linear-gradient(135deg,#FF6A00,#F72585,#7B2CFF)', border: 'none', borderRadius: 8, color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+          <button onClick={save} disabled={saving} className="btn btn-primary btn-md" style={{ background: saved ? '#1D9E75' : 'linear-gradient(135deg,#FF6A00,#F72585,#7B2CFF)' }}>
             {saving ? 'Salvando...' : saved ? '✓ Salvo!' : 'Salvar'}
           </button>
         </div>

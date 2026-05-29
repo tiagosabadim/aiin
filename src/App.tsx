@@ -55,12 +55,29 @@ export default function App() {
   return (
     <AppLayout route={route} navigate={navigate} credits={credits} pendingCount={0}>
       {route === 'dashboard'  && <DashboardPage {...ctx} />}
-      {route === 'briefing'   && <BriefingPage  {...ctx} />}
-      {route === 'campaigns'  && <CampaignsPage {...ctx} />}
+      {route === 'briefing' && (
+        <div style={{ display:'flex', flexDirection:'column', flex:1, minHeight:0, overflow:'hidden' }}>
+          <div style={{ padding:'20px 28px 0', flexShrink:0 }}><h1 className="page-title">Avulsos</h1></div>
+          <BriefingPage {...ctx} />
+        </div>
+      )}
+      {route === 'campaigns' && (
+        <div style={{ display:'flex', flexDirection:'column', flex:1, minHeight:0, overflow:'hidden' }}>
+          <div style={{ padding:'20px 28px 0', flexShrink:0 }}><h1 className="page-title">Campanhas</h1></div>
+          <CampaignsPage {...ctx} />
+        </div>
+      )}
       {route === 'posts'      && <PostsPage      workspaceId={workspace.id} userId={user.id} />}
       {route === 'schedule'   && <SchedulePage   workspaceId={workspace.id} navigate={navigate} />}
       {route === 'insights'   && <InsightsPage workspaceId={workspace.id} brand={brand} />}
-      {route === 'design'     && <DesignSystemPage brand={brand} workspaceId={workspace.id} onSave={refetch} openOnboardingAt={openOnboardingAt} />}
+      {route === 'design' && (
+        <div style={{ display:'flex', flexDirection:'column', flex:1, minHeight:0, overflow:'hidden' }}>
+          <div style={{ padding:'20px 28px 0', flexShrink:0 }}>
+            <h1 className="page-title">Brand DNA</h1>
+          </div>
+          <DesignSystemPage brand={brand} workspaceId={workspace.id} onSave={refetch} openOnboardingAt={openOnboardingAt} />
+        </div>
+      )}
       {route === 'settings'   && <SettingsPage   workspace={workspace} brand={brand} />}
     </AppLayout>
   )

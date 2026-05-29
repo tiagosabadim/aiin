@@ -255,9 +255,9 @@ export function CampaignsPage({ workspace, brand, subscription, credits, navigat
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
             <span style={{ color: '#F72585', fontSize: 18 }}>✦</span>
-            <h1 style={{ fontSize: 18, fontWeight: 700, color: '#070D1F', letterSpacing: '-.3px' }}>Planejar novo cronograma</h1>
+            <h2 style={{ fontSize: 15, fontWeight: 700, color: '#070D1F', letterSpacing: '-.2px' }}>Planejar nova campanha</h2>
           </div>
-          <p style={{ fontSize: 12, color: '#6B7280' }}>Configure a IA e monte o cronograma perfeito para você.</p>
+          <p style={{ fontSize: 12, color: '#9CA3AF' }}>Configure a IA e monte o cronograma perfeito para você.</p>
         </div>
 
         {/* Form embutido — redireciona para BriefingPage com o form */}
@@ -267,10 +267,9 @@ export function CampaignsPage({ workspace, brand, subscription, credits, navigat
       {/* ── DIREITA: lista de cronogramas ── */}
       <div className="page-split-right">
 
-        {/* Header */}
-        <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid rgba(7,13,31,.07)', flexShrink: 0 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 700, color: '#070D1F' }}>Cronogramas</h2>
-          <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>Planeje, acompanhe e aprove seus cronogramas em um só lugar.</p>
+        {/* Header dentro do card */}
+        <div style={{ padding: '20px 24px 14px', borderBottom: '1px solid rgba(7,13,31,.07)', flexShrink: 0 }}>
+          <p style={{ fontSize: 12, color: '#9CA3AF' }}>Planeje, acompanhe e aprove suas campanhas em um só lugar.</p>
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px 32px' }}>

@@ -165,9 +165,8 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
       {/* ── ESQUERDA: seleção de formato ── */}
       <div className="page-split-left" style={{ gap: 0, padding: 0 }}>
 
-        <div style={{ padding: '24px 24px 16px' }}>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: '#070D1F', letterSpacing: '-.3px', marginBottom: 4 }}>Avulsos</h1>
-          <p style={{ fontSize: 13, color: '#6B7280' }}>Crie posts individuais: feed, carrossel, stories ou capa de Reels.</p>
+        <div style={{ padding: '20px 24px 14px', borderBottom: '1px solid rgba(7,13,31,.07)' }}>
+          <p style={{ fontSize: 12, color: '#9CA3AF' }}>Escolha o formato e preencha as informações para a IA criar seu post.</p>
         </div>
 
         {/* Créditos */}
@@ -230,7 +229,7 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
         ) : (
           <>
             {/* Header sticky */}
-            <div style={{ position: 'sticky', top: 0, zIndex: 10, background: '#fff', borderBottom: '1px solid rgba(7,13,31,.07)', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+            <div style={{ borderBottom: '1px solid rgba(7,13,31,.07)', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
               <div style={{ width: 36, height: 36, borderRadius: 10, background: selected.bg, border: `1px solid ${selected.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: selected.color }}>
                 {selected.icon}
               </div>

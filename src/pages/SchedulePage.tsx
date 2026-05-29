@@ -204,7 +204,7 @@ export function SchedulePage({ workspaceId, navigate }: Props) {
           <h1 className="page-title">Agenda</h1>
           <p className="page-sub">{nScheduled} agendado{nScheduled !== 1 ? 's' : ''} · {nPublished} publicado{nPublished !== 1 ? 's' : ''}</p>
         </div>
-        <button onClick={() => { setShowExtModal(true); const t = new Date(); t.setDate(t.getDate()+1); setExtDate(t.toISOString().split('T')[0]) }} style={{ height: 44, padding: '0 20px', background: 'linear-gradient(135deg,#FF6A00,#F72585,#7B2CFF)', border: 'none', borderRadius: 12, color: 'white', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 16px rgba(247,37,133,.25)' }}>
+        <button onClick={() => { setShowExtModal(true); const t = new Date(); t.setDate(t.getDate()+1); setExtDate(t.toISOString().split('T')[0]) }} className="btn btn-primary btn-lg" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           + Novo agendamento
         </button>
       </div>
