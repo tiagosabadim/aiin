@@ -69,12 +69,12 @@ export function LoginPage() {
       <div style={{ position: 'absolute', top: '20%', left: '5%', width: 300, height: 300, zIndex: 1, background: 'radial-gradient(circle, rgba(123,44,255,.08) 0%, transparent 70%)', pointerEvents: 'none' }} />
 
       {/* ── ESQUERDA — brand ── */}
-      <div style={{ flex: 1, position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '80px 64px' }}>
+      <div style={{ flex: 1, position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 0 0 8%' }}>
 
         {/* Logo grande */}
-        <div style={{ marginBottom: 48 }}>
+        <div style={{ marginBottom: 36 }}>
           <img src="/logo.png" alt="aiin"
-            style={{ height: 72, objectFit: 'contain' }}
+            style={{ height: 80, objectFit: 'contain', maxWidth: 220 }}
             onError={e => {
               const el = e.target as HTMLImageElement
               el.style.display = 'none'
@@ -87,14 +87,14 @@ export function LoginPage() {
         </div>
 
         {/* Headline */}
-        <h1 style={{ fontSize: 52, fontWeight: 800, color: 'white', letterSpacing: '-1.5px', lineHeight: 1.1, marginBottom: 20, whiteSpace: 'nowrap' }}>
+        <h1 style={{ fontSize: 58, fontWeight: 800, color: 'white', letterSpacing: '-2px', lineHeight: 1.1, marginBottom: 20, whiteSpace: 'nowrap' }}>
           Crie. Publique.{' '}
           <span style={{ background: 'linear-gradient(135deg,#FF6A00,#F72585)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
             Cresça.
           </span>
         </h1>
 
-        <p style={{ fontSize: 16, color: 'rgba(255,255,255,.5)', lineHeight: 1.7, marginBottom: 48 }}>
+        <p style={{ fontSize: 15, color: 'rgba(255,255,255,.45)', lineHeight: 1.7, marginBottom: 44 }}>
           Do briefing ao post pronto.<br />
           Conteúdo estático automático com IA.
         </p>
@@ -114,9 +114,9 @@ export function LoginPage() {
       </div>
 
       {/* ── DIREITA — card flutuante ── */}
-      <div style={{ width: 560, position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 64px 48px 24px' }}>
+      <div style={{ width: 540, flexShrink: 0, position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 80px 48px 20px' }}>
 
-        <div style={{ width: '100%', maxWidth: 460, background: 'rgba(255,255,255,.98)', borderRadius: 24, padding: '48px 44px', boxShadow: '0 32px 100px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.1)' }}>
+        <div style={{ width: '100%', maxWidth: 420, background: 'rgba(255,255,255,.98)', borderRadius: 20, padding: '40px 36px', boxShadow: '0 32px 80px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.08)' }}>
 
           <h2 style={{ fontSize: 28, fontWeight: 700, color: '#070D1F', letterSpacing: '-.5px', marginBottom: 6, textAlign: 'center' }}>
             {isSignup ? 'Criar sua conta' : 'Entrar no aiin'}
