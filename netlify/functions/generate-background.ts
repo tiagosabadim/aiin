@@ -57,6 +57,8 @@ export const handler = async (event: any) => {
       title, objective, tone_of_voice, target_audience,
       products, design_rules, forbidden_words, slogans,
       color_palette, instagram_handle,
+      // Campos avulsos
+      slide_count, reference_urls,
     } = body
 
     await supabase.from('content_jobs').update({ status: 'processing' }).eq('id', job_id)
@@ -83,10 +85,17 @@ export const handler = async (event: any) => {
       slogans: slogans || brand.slogans,
     }
 
-    const slideCount = job_type === 'carrossel_5' ? 5
+    const slideCount = slide_count
+      ?? (job_type === 'carrossel_5' ? 5
       : job_type === 'carrossel_7' ? 7
       : job_type === 'story_sequencia' ? 3
-      : 1
+      : 1)
+
+    // Adicionar referências do usuário no contexto
+    const extraContextFinal = [
+      extra_context,
+      reference_urls?.length ? `Imagens de referência fornecidas pelo usuário: ${reference_urls.join(', ')}` : null,
+    ].filter(Boolean).join('\n') || extra_context
 
     // Garante contexto visual da marca (logo + referências)
     const brandContextId = await ensureBrandContext(mergedBrand)
@@ -97,7 +106,7 @@ export const handler = async (event: any) => {
         // 1. GPT-4o gera estrutura completa
         const content = await generateContent(
           mergedBrand, job_type, slideCount,
-          title, objective, extra_context, hashtags
+          title, objective, extraContextFinal, hashtags
         )
 
         // 2. Gera todas as imagens EM PARALELO para caber no timeout
@@ -147,8 +156,9 @@ export const handler = async (event: any) => {
 
         // 4. Salva slides do carrossel
         if (output && slideCount > 1) {
-          for (let s = 0; s < content.slides.length; s++) {
-            const slide = content.slides[s]
+          const slidesToProcess = content.slides.slice(0, slideCount)
+          for (let s = 0; s < slidesToProcess.length; s++) {
+            const slide = slidesToProcess[s]
             await supabase.from('carousel_pages').insert({
               creative_output_id: output.id,
               page_number: s + 1,
@@ -396,7 +406,8 @@ Dimensão da imagem: ${imageSize}
 INSTRUÇÕES DE CRIAÇÃO
 ════════════════════════════════════
 ${isCarousel ? `
-Estrutura do carrossel (${slideCount} slides):
+OBRIGATÓRIO: crie EXATAMENTE ${slideCount} slide${slideCount > 1 ? 's' : ''} — não mais, não menos.
+Estrutura dos ${slideCount} slides:
 • Slide 1 (CAPA): headline impactante que para o scroll. Deve despertar curiosidade ou identificação imediata.
 • Slides 2 a ${slideCount - 1}: um ponto de valor por slide. Texto curto, direto, fácil de ler rapidamente.
 • Slide ${slideCount} (CTA): chamada para ação clara e específica. Diga exatamente o que o usuário deve fazer.
@@ -420,20 +431,20 @@ Para o visual_prompt de cada slide, descreva em INGLÊS detalhado:
 ════════════════════════════════════
 FORMATO DE RESPOSTA
 ════════════════════════════════════
-Retorne SOMENTE este JSON válido, sem markdown, sem explicações:
-{
-  "caption": "legenda completa em português com emojis e quebras de linha\\n\\n#hashtag1 #hashtag2",
-  "hashtags": ["#hashtag1", "#hashtag2", "#hashtag3"],
-  "ai_score": 8.5,
-  "slides": [
-    {
-      "headline": "título curto e impactante em português",
-      "body": "texto do corpo em português (2-3 linhas no máximo)",
-      "cta": "chamada para ação em português (obrigatório apenas no último slide)",
-      "visual_prompt": "Detailed English prompt: composition, lighting, style, brand colors ${brandColors}, text overlays in Portuguese, photography/illustration style, mood, quality"
-    }
-  ]
-}`
+Retorne SOMENTE este JSON válido, sem markdown, sem explicações.
+O array "slides" deve ter EXATAMENTE ${slideCount} objeto${slideCount !== 1 ? 's' : ''}.
+
+${JSON.stringify({
+  caption: "legenda completa em português com emojis e quebras de linha\n\n#hashtag1 #hashtag2",
+  hashtags: ["#hashtag1", "#hashtag2", "#hashtag3"],
+  ai_score: 8.5,
+  slides: Array.from({ length: slideCount }, (_, i) => ({
+    headline: `Título do slide ${i + 1} em português`,
+    body: "texto do corpo em português (2-3 linhas no máximo)",
+    cta: i === slideCount - 1 ? "chamada para ação no último slide" : "",
+    visual_prompt: "Detailed English prompt for this slide: composition, lighting, style, brand colors, text overlays in Portuguese, photography style, mood, quality"
+  }))
+}, null, 2)}`
 
   const res = await fetch(`${OPENAI_BASE}/chat/completions`, {
     method: 'POST',
@@ -443,11 +454,12 @@ Retorne SOMENTE este JSON válido, sem markdown, sem explicações:
       messages: [
         {
           role: 'system',
-          content: 'Você é um especialista em marketing digital e Instagram no Brasil. Crie conteúdo em português brasileiro. Sempre retorne JSON válido sem markdown.',
+          content: 'Você é um especialista em marketing digital e Instagram no Brasil. Crie conteúdo em português brasileiro. Sempre retorne JSON válido sem markdown. Respeite EXATAMENTE o número de slides solicitado.',
         },
         { role: 'user', content: prompt },
       ],
       temperature: 0.75,
+      max_tokens: Math.min(1200 + slideCount * 600, 4000),
       response_format: { type: 'json_object' },
     }),
   })
