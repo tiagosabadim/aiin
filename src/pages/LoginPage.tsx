@@ -59,7 +59,7 @@ export function LoginPage() {
       {/* Fundo com imagem PNG */}
       <div style={{
         position: 'absolute', inset: 0, zIndex: 0,
-        backgroundImage: 'url(/login-bg.png)',
+        backgroundImage: 'url(/login-bg.png), url(/login-bg.jpg)',
         backgroundSize: 'cover', backgroundPosition: 'center',
       }} />
 
@@ -69,12 +69,12 @@ export function LoginPage() {
       <div style={{ position: 'absolute', top: '20%', left: '5%', width: 300, height: 300, zIndex: 1, background: 'radial-gradient(circle, rgba(123,44,255,.08) 0%, transparent 70%)', pointerEvents: 'none' }} />
 
       {/* ── ESQUERDA — brand ── */}
-      <div style={{ flex: 1, position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '60px 64px' }}>
+      <div style={{ flex: 1, position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '80px 64px' }}>
 
         {/* Logo grande */}
         <div style={{ marginBottom: 48 }}>
           <img src="/logo.png" alt="aiin"
-            style={{ height: 52, objectFit: 'contain' }}
+            style={{ height: 72, objectFit: 'contain' }}
             onError={e => {
               const el = e.target as HTMLImageElement
               el.style.display = 'none'
@@ -87,7 +87,7 @@ export function LoginPage() {
         </div>
 
         {/* Headline */}
-        <h1 style={{ fontSize: 56, fontWeight: 800, color: 'white', letterSpacing: '-1.5px', lineHeight: 1.05, marginBottom: 20, maxWidth: 520 }}>
+        <h1 style={{ fontSize: 52, fontWeight: 800, color: 'white', letterSpacing: '-1.5px', lineHeight: 1.1, marginBottom: 20, whiteSpace: 'nowrap' }}>
           Crie. Publique.{' '}
           <span style={{ background: 'linear-gradient(135deg,#FF6A00,#F72585)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
             Cresça.
@@ -103,8 +103,8 @@ export function LoginPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           {FEATURES.map((f, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <div style={{ width: 48, height: 48, borderRadius: 14, background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
-                <img src={f.icon} alt="" style={{ width: 30, height: 30, objectFit: 'contain' }}
+              <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden', backdropFilter: 'blur(8px)' }}>
+                <img src={f.icon} alt="" style={{ width: 32, height: 32, objectFit: 'contain' }}
                   onError={e => { const el = e.target as HTMLImageElement; el.style.display = 'none'; el.parentElement!.innerHTML = `<span style="font-size:20px">${f.fallback}</span>` }} />
               </div>
               <span style={{ fontSize: 15, color: 'rgba(255,255,255,.65)', fontWeight: 400 }}>{f.text}</span>
@@ -114,9 +114,9 @@ export function LoginPage() {
       </div>
 
       {/* ── DIREITA — card flutuante ── */}
-      <div style={{ width: 560, position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 40px' }}>
+      <div style={{ width: 560, position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 64px 48px 24px' }}>
 
-        <div style={{ width: '100%', maxWidth: 440, background: 'rgba(255,255,255,.97)', borderRadius: 24, padding: '44px 40px', boxShadow: '0 24px 80px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.08)' }}>
+        <div style={{ width: '100%', maxWidth: 460, background: 'rgba(255,255,255,.98)', borderRadius: 24, padding: '48px 44px', boxShadow: '0 32px 100px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.1)' }}>
 
           <h2 style={{ fontSize: 28, fontWeight: 700, color: '#070D1F', letterSpacing: '-.5px', marginBottom: 6, textAlign: 'center' }}>
             {isSignup ? 'Criar sua conta' : 'Entrar no aiin'}
