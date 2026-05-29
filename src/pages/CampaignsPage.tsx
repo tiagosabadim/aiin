@@ -424,8 +424,26 @@ function PlannerForm({ workspace, brand, credits, onGenerated, navigate }: { wor
   const [nPost, setNPost]   = useState(2)
   const [nCar,  setNCar]    = useState(1)
   const [nSt,   setNSt]     = useState(0)
+  const [touched, setTouched] = useState(false)  // usuário mexeu manualmente no mix?
   const [loading, setLoading] = useState(false)
   const [error, setError]   = useState<string|null>(null)
+
+  // Total de posts no período = posts/semana × número de semanas
+  const weeks = period==='semana' ? 1 : period==='quinzena' ? 2 : 4
+  const targetTotal = ppw * weeks
+
+  // Recalcula o mix sugerido sempre que período ou ppw mudam (a não ser que o usuário tenha mexido)
+  useEffect(() => {
+    if (touched) return
+    // Distribuição sugerida: 50% posts, 30% carrossel, 20% story
+    const car  = Math.max(1, Math.round(targetTotal * 0.3))
+    const st   = Math.round(targetTotal * 0.2)
+    const post = Math.max(0, targetTotal - car - st)
+    setNPost(post); setNCar(car); setNSt(st)
+  }, [period, ppw, targetTotal, touched])
+
+  // Helper: marca como tocado ao mexer manualmente
+  const setMix = (setter: (n:number)=>void) => (n:number) => { setTouched(true); setter(n) }
 
   const total  = nPost + nCar + nSt
   const estCr  = nPost + nCar*3 + nSt
@@ -472,22 +490,19 @@ function PlannerForm({ workspace, brand, credits, onGenerated, navigate }: { wor
   )
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:16, flex:1 }}>
-      {/* Período */}
-      <div style={card}>
-        <div style={{ fontSize:11,fontWeight:600,color:'#9CA3AF',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:10 }}>Período</div>
-        <div style={{ display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8 }}>
-          {([['semana','1 semana','~5 posts'],['quinzena','2 semanas','~10 posts'],['mes','1 mês','~20 posts']] as const).map(([v,l,s])=>(
-            <button key={v} onClick={()=>setPeriod(v)} style={{ padding:'10px 6px',textAlign:'center',cursor:'pointer',fontFamily:'inherit',border:`1.5px solid ${period===v?'#F72585':'rgba(7,13,31,.1)'}`,borderRadius:10,background:period===v?'rgba(247,37,133,.06)':'#fff',transition:'all .12s',display:'flex',flexDirection:'column',alignItems:'center',gap:4,position:'relative' }}>
+    <div style={{ display:'flex', flexDirection:'column', gap:12, flex:1 }}>
+      {/* Período — compacto, sem label */}
+      <div style={{ display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8 }}>
+        {([['semana','1 semana'],['quinzena','2 semanas'],['mes','1 mês']] as const).map(([v,l])=>{
+          const w = v==='semana'?1:v==='quinzena'?2:4
+          return (
+            <button key={v} onClick={()=>{setPeriod(v);setTouched(false)}} style={{ padding:'10px 6px',textAlign:'center',cursor:'pointer',fontFamily:'inherit',border:`1.5px solid ${period===v?'#F72585':'rgba(7,13,31,.1)'}`,borderRadius:10,background:period===v?'rgba(247,37,133,.06)':'#fff',transition:'all .12s',display:'flex',flexDirection:'column',alignItems:'center',gap:3,position:'relative' }}>
               {period===v&&<span style={{ position:'absolute',top:5,right:6,width:14,height:14,borderRadius:'50%',background:'#F72585',display:'flex',alignItems:'center',justifyContent:'center',fontSize:8,color:'white' }}>✓</span>}
-              <div style={{ width:24,height:24,borderRadius:6,background:period===v?'rgba(247,37,133,.1)':'#F7F8FA',display:'flex',alignItems:'center',justifyContent:'center',color:period===v?'#F72585':'#9CA3AF' }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              </div>
-              <div style={{ fontSize:12,fontWeight:600,color:period===v?'#070D1F':'#374151' }}>{l}</div>
-              <div style={{ fontSize:10,color:'#9CA3AF' }}>{s}</div>
+              <div style={{ fontSize:13,fontWeight:600,color:period===v?'#070D1F':'#374151' }}>{l}</div>
+              <div style={{ fontSize:10,color:'#9CA3AF' }}>~{ppw*w} posts</div>
             </button>
-          ))}
-        </div>
+          )
+        })}
       </div>
 
       {/* Tema */}
@@ -508,7 +523,7 @@ function PlannerForm({ workspace, brand, credits, onGenerated, navigate }: { wor
             <div style={{ fontSize:11,fontWeight:600,color:'#9CA3AF',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:6 }}>Posts/semana</div>
             <div style={{ display:'flex',gap:4 }}>
               {[2,3,4,5,7].map(n=>(
-                <button key={n} onClick={()=>setPpw(n)} style={{ flex:1,height:38,cursor:'pointer',fontFamily:'inherit',borderRadius:7,fontSize:13,fontWeight:ppw===n?700:400,border:`1.5px solid ${ppw===n?'#F72585':'rgba(7,13,31,.1)'}`,background:ppw===n?'rgba(247,37,133,.06)':'#fff',color:ppw===n?'#F72585':'#6B7280',transition:'all .12s' }}>{n}</button>
+                <button key={n} onClick={()=>{setPpw(n);setTouched(false)}} style={{ flex:1,height:38,cursor:'pointer',fontFamily:'inherit',borderRadius:7,fontSize:13,fontWeight:ppw===n?700:400,border:`1.5px solid ${ppw===n?'#F72585':'rgba(7,13,31,.1)'}`,background:ppw===n?'rgba(247,37,133,.06)':'#fff',color:ppw===n?'#F72585':'#6B7280',transition:'all .12s' }}>{n}</button>
               ))}
             </div>
           </div>
@@ -517,13 +532,13 @@ function PlannerForm({ workspace, brand, credits, onGenerated, navigate }: { wor
 
       {/* Mix */}
       <div style={card}>
-        <div style={{ fontSize:11,fontWeight:600,color:'#9CA3AF',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:12 }}>Mix de formatos</div>
+        <div style={{ fontSize:11,fontWeight:600,color:'#9CA3AF',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:10 }}>Mix de formatos <span style={{ fontWeight:400,textTransform:'none',letterSpacing:0,color:'#C4C7CE' }}>· ajuste se quiser</span></div>
         {[
-          {label:'Posts estáticos',sub:'1 cr.',color:'#7B2CFF',bg:'rgba(123,44,255,.1)',val:nPost,set:setNPost},
-          {label:'Carrosséis 5p',  sub:'3 cr.',color:'#F72585',bg:'rgba(247,37,133,.1)',val:nCar, set:setNCar },
-          {label:'Stories avulsos',sub:'1 cr.',color:'#FF6A00',bg:'rgba(255,106,0,.1)', val:nSt,  set:setNSt  },
+          {label:'Posts estáticos',sub:'1 cr.',color:'#7B2CFF',bg:'rgba(123,44,255,.1)',val:nPost,set:setMix(setNPost)},
+          {label:'Carrosséis 5p',  sub:'3 cr.',color:'#F72585',bg:'rgba(247,37,133,.1)',val:nCar, set:setMix(setNCar) },
+          {label:'Stories avulsos',sub:'1 cr.',color:'#FF6A00',bg:'rgba(255,106,0,.1)', val:nSt,  set:setMix(setNSt)  },
         ].map(row=>(
-          <div key={row.label} style={{ display:'flex',alignItems:'center',marginBottom:12 }}>
+          <div key={row.label} style={{ display:'flex',alignItems:'center',marginBottom:10 }}>
             <div style={{ width:30,height:30,borderRadius:8,background:row.bg,display:'flex',alignItems:'center',justifyContent:'center',color:row.color,marginRight:10,flexShrink:0,fontSize:14 }}>▣</div>
             <div style={{ flex:1 }}>
               <div style={{ fontSize:12,fontWeight:500,color:'#070D1F' }}>{row.label}</div>
@@ -540,7 +555,7 @@ function PlannerForm({ workspace, brand, credits, onGenerated, navigate }: { wor
 
       {error&&<div style={{ padding:'8px 12px',background:'#FCEBEB',border:'1px solid rgba(226,75,74,.2)',borderRadius:8,fontSize:12,color:'#E24B4A' }}>{error}</div>}
 
-      <div style={{ flex:1 }} />
+      <div style={{ flex:1, minHeight:8 }} />
 
       <button onClick={generate} disabled={loading||total===0} style={{ width:'100%',height:48,background:loading||total===0?'#e5e7eb':'linear-gradient(135deg,#FF6A00,#F72585,#7B2CFF)',border:'none',borderRadius:12,color:loading||total===0?'#9CA3AF':'white',fontSize:14,fontWeight:700,fontFamily:'inherit',cursor:loading||total===0?'not-allowed':'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,boxShadow:loading||total===0?'none':'0 4px 16px rgba(247,37,133,.3)' }}>
         {loading?<><div style={{ width:16,height:16,border:'2.5px solid rgba(255,255,255,.3)',borderTopColor:'white',borderRadius:'50%',animation:'spin 1s linear infinite' }} /> Gerando cronograma…</>:<><span style={{ fontSize:16 }}>✦</span> Gerar cronograma</>}
