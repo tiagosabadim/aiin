@@ -54,14 +54,7 @@ export function LoginPage() {
   const [passFocus, setPassFocus]   = useState(false)
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', position: 'relative', overflow: 'hidden', background: '#08060F' }}>
-
-      {/* Fundo com imagem PNG */}
-      <div style={{
-        position: 'absolute', inset: 0, zIndex: 0,
-        backgroundImage: 'url(/login-bg.png), url(/login-bg.jpg)',
-        backgroundSize: 'cover', backgroundPosition: 'center',
-      }} />
+    <div style={{ minHeight: '100vh', display: 'flex', position: 'relative', overflow: 'hidden', background: '#08060F', backgroundImage: 'url(/login-bg.png), url(/login-bg.jpg)', backgroundSize: 'cover', backgroundPosition: 'center' }}>
 
       {/* Glows decorativos — idênticos à referência */}
       <div style={{ position: 'absolute', bottom: '-5%', right: '25%', width: 600, height: 400, zIndex: 1, background: 'radial-gradient(ellipse, rgba(123,44,255,.35) 0%, transparent 65%)', pointerEvents: 'none' }} />
