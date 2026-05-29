@@ -3,6 +3,7 @@
 // Mobile: calendário + bottom sheet ao selecionar
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import { getMarketingDatesForMonth, getUpcomingDates, type MarketingDate } from '../lib/brazilianCalendar'
 
 interface Props { workspaceId: string; navigate: (r: string) => void }
 
@@ -42,6 +43,9 @@ export function SchedulePage({ workspaceId, navigate }: Props) {
   const [saving, setSaving]           = useState(false)
 
   // Post externo
+  const [marketingDates, setMarketingDates] = useState<Record<number, MarketingDate[]>>({})
+  const [upcomingMarketing, setUpcomingMarketing] = useState<MarketingDate[]>([])
+  const [showMarketing, setShowMarketing] = useState(true)
   const [showExtModal, setShowExtModal] = useState(false)
   const [extDate, setExtDate]           = useState('')
   const [extTime, setExtTime]           = useState('18:00')
@@ -67,6 +71,11 @@ export function SchedulePage({ workspaceId, navigate }: Props) {
     setPosts(mapped as any)
     setLoading(false)
   }
+
+  useEffect(() => {
+    setMarketingDates(getMarketingDatesForMonth(viewYear, viewMonth + 1))
+    setUpcomingMarketing(getUpcomingDates(60))
+  }, [viewYear, viewMonth])
 
   useEffect(() => {
     fetchPosts()
@@ -223,6 +232,7 @@ export function SchedulePage({ workspaceId, navigate }: Props) {
                 if (!day) return <div key={idx} />
                 const isToday = day === now.getDate() && viewMonth === now.getMonth() && viewYear === now.getFullYear()
                 const evts = postsByDay[day] ?? []
+                const mktDates = marketingDates[day] ?? []
                 const isSel = evts.some(e => e.id === selectedPost?.id)
 
                 return (
@@ -235,6 +245,11 @@ export function SchedulePage({ workspaceId, navigate }: Props) {
                     }}
                   >
                     <div style={{ fontSize: 13, color: isToday ? '#7B2CFF' : '#374151', fontWeight: isToday ? 700 : 400, marginBottom: 4 }}>{day}</div>
+                    {mktDates.slice(0, 1).map((m, mi) => (
+                      <div key={`m${mi}`} title={m.label} style={{ fontSize: 9, color: m.color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 1, fontWeight: 500 }}>
+                        {m.emoji} {m.label.length > 10 ? m.label.slice(0, 10) + '…' : m.label}
+                      </div>
+                    ))}
                     {evts.slice(0, 2).map((ev, ei) => {
                       const st = STATUS[ev.status] ?? STATUS.scheduled
                       return (
@@ -344,6 +359,33 @@ export function SchedulePage({ workspaceId, navigate }: Props) {
                 <div style={{ fontSize: 36, opacity: .2 }}>📅</div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: '#374151' }}>Selecione um post</div>
                 <div style={{ fontSize: 12, color: '#9CA3AF', lineHeight: 1.6 }}>Clique em qualquer dia com posts agendados para ver detalhes</div>
+              </div>
+            )}
+
+            {/* Próximas datas comemorativas */}
+            {upcomingMarketing.length > 0 && (
+              <div style={{ background: '#fff', border: '1px solid rgba(7,13,31,.08)', borderRadius: 16, padding: '16px 18px' }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#070D1F', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span>🗓</span> Próximas datas
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {upcomingMarketing.slice(0, 6).map((d, i) => {
+                    const dt = new Date(d.date + 'T12:00:00')
+                    const daysLeft = Math.ceil((dt.getTime() - new Date().getTime()) / 86400000)
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: i < 5 ? '1px solid rgba(7,13,31,.05)' : 'none' }}>
+                        <span style={{ fontSize: 14, flexShrink: 0 }}>{d.emoji}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 12, fontWeight: 500, color: '#070D1F', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.label}</div>
+                          <div style={{ fontSize: 10, color: '#9CA3AF' }}>{dt.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</div>
+                        </div>
+                        <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 99, background: daysLeft <= 7 ? '#FCEBEB' : daysLeft <= 14 ? '#FAEEDA' : '#F3F4F6', color: daysLeft <= 7 ? '#E24B4A' : daysLeft <= 14 ? '#BA7517' : '#6B7280', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                          {daysLeft === 0 ? 'hoje' : daysLeft === 1 ? 'amanhã' : `${daysLeft}d`}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             )}
 
