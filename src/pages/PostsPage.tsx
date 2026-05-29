@@ -267,9 +267,9 @@ export function PostsPage({ workspaceId, userId }: Props) {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-ghost btn-sm" onClick={() => { fetchOutputs(); fetchProcessing() }}>↺ Atualizar</button>
+          <button className="btn btn-md" style={{ border:'1px solid rgba(7,13,31,.12)', background:'transparent', color:'#374151' }} onClick={() => { fetchOutputs(); fetchProcessing() }}>↺ Atualizar</button>
           {pendingCt > 0 && (
-            <button className="btn btn-success btn-sm" onClick={handleApproveAll}>✓ Aprovar todos</button>
+            <button className="btn btn-primary btn-md" onClick={handleApproveAll}>✓ Aprovar todos</button>
           )}
         </div>
       </div>
@@ -295,13 +295,13 @@ export function PostsPage({ workspaceId, userId }: Props) {
         ))}
       </div>
 
-      {/* Grid */}
+      {/* Grid — fundo cinza, cards brancos */}
       {loading ? (
-        <div className="posts-grid">
+        <div className="posts-grid" style={{ background:'var(--bg)', padding:'16px', borderRadius:'var(--r16)', marginTop:4 }}>
           {[1, 2, 3].map(i => <SkeletonCard key={i} />)}
         </div>
       ) : (
-        <div className="posts-grid">
+        <div className="posts-grid" style={{ background:'var(--bg)', padding:'16px', borderRadius:'var(--r16)', marginTop:4 }}>
           {processing > 0 && Array.from({ length: processing }).map((_, i) => <SkeletonCard key={`sk-${i}`} />)}
 
           {filtered.length === 0 && processing === 0 && (
@@ -412,29 +412,20 @@ export function PostsPage({ workspaceId, userId }: Props) {
 
                 {/* Action bar — sempre visível */}
                 {!isEditing && !isSched && !isDel && (
-                  <div className="post-card-actions">
+                  <div className="post-card-actions" style={{ display:'flex', gap:6, padding:'12px 14px', borderTop:'1px solid rgba(7,13,31,.06)' }}>
                     {output.status === 'pending' && (
-                      <button className="btn-approve-main" onClick={() => handleApprove(output.id)}>
-                        ✓ Aprovar
-                      </button>
+                      <button className="btn btn-primary btn-md" style={{ flex:1 }} onClick={() => handleApprove(output.id)}>✓ Aprovar</button>
                     )}
                     {output.status === 'approved' && (
-                      <button className="btn-approve-main" style={{ background: 'var(--info)' }} onClick={() => {
-                        const t = new Date(); t.setDate(t.getDate() + 1)
-                        setScheduleDate(t.toISOString().split('T')[0])
-                        setScheduleTime('18:00')
-                        setSchedulingId(output.id)
-                      }}>
-                        📅 Agendar
-                      </button>
+                      <button className="btn btn-md" style={{ flex:1, border:'1px solid rgba(7,13,31,.12)', background:'transparent', color:'#374151' }} onClick={() => { const t=new Date(); t.setDate(t.getDate()+1); setScheduleDate(t.toISOString().split('T')[0]); setScheduleTime('18:00'); setSchedulingId(output.id) }}>📅 Agendar</button>
                     )}
                     {output.status !== 'published' && (
-                      <button className="btn-action" onClick={() => { setEditingId(output.id); setEditCaption(output.caption ?? '') }}>✎</button>
+                      <button className="btn btn-sm" style={{ border:'1px solid rgba(7,13,31,.1)', background:'transparent', color:'#374151' }} onClick={() => { setEditingId(output.id); setEditCaption(output.caption ?? '') }}>✎</button>
                     )}
                     {output.status !== 'rejected' && output.status !== 'published' && (
-                      <button className="btn-action danger" onClick={() => handleReject(output.id)}>✕</button>
+                      <button className="btn btn-sm" style={{ border:'1px solid rgba(226,75,74,.2)', background:'transparent', color:'#E24B4A' }} onClick={() => handleReject(output.id)}>✕</button>
                     )}
-                    <button className="btn-action" style={{ marginLeft: 'auto' }} onClick={() => setConfirmDeleteId(output.id)}>🗑</button>
+                    <button className="btn btn-sm" style={{ border:'1px solid rgba(7,13,31,.1)', background:'transparent', color:'#9CA3AF', marginLeft:'auto' }} onClick={() => setConfirmDeleteId(output.id)}>🗑</button>
                   </div>
                 )}
               </div>
