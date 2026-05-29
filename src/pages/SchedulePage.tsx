@@ -73,8 +73,13 @@ export function SchedulePage({ workspaceId, navigate }: Props) {
   }
 
   useEffect(() => {
-    setMarketingDates(getMarketingDatesForMonth(viewYear, viewMonth + 1))
-    setUpcomingMarketing(getUpcomingDates(60))
+    const byDay = getMarketingDatesForMonth(viewYear, viewMonth + 1)
+    setMarketingDates(byDay)
+    // Flatten todas as datas do mês ordenadas por dia
+    const allThisMonth = Object.entries(byDay)
+      .sort(([a],[b]) => Number(a) - Number(b))
+      .flatMap(([,dates]) => dates)
+    setUpcomingMarketing(allThisMonth)
   }, [viewYear, viewMonth])
 
   useEffect(() => {
@@ -366,10 +371,10 @@ export function SchedulePage({ workspaceId, navigate }: Props) {
             {upcomingMarketing.length > 0 && (
               <div style={{ background: '#fff', border: '1px solid rgba(7,13,31,.08)', borderRadius: 16, padding: '16px 18px' }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#070D1F', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span>🗓</span> Próximas datas
+                  <span>🗓</span> {MONTHS[viewMonth]}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {upcomingMarketing.slice(0, 6).map((d, i) => {
+                  {upcomingMarketing.map((d, i) => {
                     const dt = new Date(d.date + 'T12:00:00')
                     const daysLeft = Math.ceil((dt.getTime() - new Date().getTime()) / 86400000)
                     return (
@@ -379,8 +384,8 @@ export function SchedulePage({ workspaceId, navigate }: Props) {
                           <div style={{ fontSize: 12, fontWeight: 500, color: '#070D1F', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.label}</div>
                           <div style={{ fontSize: 10, color: '#9CA3AF' }}>{dt.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</div>
                         </div>
-                        <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 99, background: daysLeft <= 7 ? '#FCEBEB' : daysLeft <= 14 ? '#FAEEDA' : '#F3F4F6', color: daysLeft <= 7 ? '#E24B4A' : daysLeft <= 14 ? '#BA7517' : '#6B7280', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                          {daysLeft === 0 ? 'hoje' : daysLeft === 1 ? 'amanhã' : `${daysLeft}d`}
+                        <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 99, background: daysLeft === 0 ? '#E1F5EE' : daysLeft > 0 && daysLeft <= 7 ? '#FAEEDA' : '#F3F4F6', color: daysLeft === 0 ? '#1D9E75' : daysLeft > 0 && daysLeft <= 7 ? '#BA7517' : '#9CA3AF', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                          {daysLeft < 0 ? `dia ${dt.getDate()}` : daysLeft === 0 ? 'hoje' : daysLeft === 1 ? 'amanhã' : `${daysLeft}d`}
                         </span>
                       </div>
                     )
