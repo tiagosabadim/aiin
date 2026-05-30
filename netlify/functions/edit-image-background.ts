@@ -1,4 +1,4 @@
-// aiin · edit-image — edita imagem de um post via Responses API (gpt-image)
+// aiin · edit-image — edita a imagem REAL do post enviando-a como input
 // 1ª edição grátis, demais cobram 1 crédito
 import { createClient } from '@supabase/supabase-js'
 
@@ -27,11 +27,11 @@ export const handler = async (event: any) => {
     if (outErr || !output) {
       return { statusCode: 404, body: JSON.stringify({ error: 'Post não encontrado' }) }
     }
+    if (!output.public_url) {
+      return { statusCode: 400, body: JSON.stringify({ error: 'Post sem imagem para editar' }) }
+    }
 
     const editCount = output.edit_count ?? 0
-
-    // Marca como "editando" para o frontend mostrar loading
-    await supabase.from('creative_outputs').update({ status: output.status }).eq('id', output_id)
 
     // 2. Da segunda edição em diante, cobra 1 crédito
     if (editCount >= 1) {
@@ -46,37 +46,39 @@ export const handler = async (event: any) => {
       }
     }
 
-    // 3. Montar requisição de edição
-    const editPrompt = `Edite a imagem anterior aplicando este ajuste solicitado pelo usuário, mantendo o restante da composição, textos e identidade visual intactos:\n\n"${instruction}"\n\nIMPORTANTE: aplique APENAS o ajuste pedido. Não altere textos, logo ou cores da marca a não ser que o ajuste peça explicitamente.`
+    // 3. Baixar a imagem ATUAL do post (remove query string de cache-bust)
+    const cleanUrl = output.public_url.split('?')[0]
+    const imgRes = await fetch(cleanUrl)
+    if (!imgRes.ok) throw new Error('Não foi possível baixar a imagem original')
+    const imgArrayBuffer = await imgRes.arrayBuffer()
+    const imgBuffer = Buffer.from(imgArrayBuffer)
 
-    const requestBody: any = {
-      model: 'gpt-4o',
-      input: [{ role: 'user', content: [{ type: 'input_text', text: editPrompt }] }],
-      tools: [{ type: 'image_generation', quality: 'high', output_format: 'png' }],
-    }
+    // 4. Montar prompt de edição
+    const editPrompt = `Aplique este ajuste na imagem, mantendo a composição, o texto e a identidade visual existentes: ${instruction}. Mantenha tudo o que não foi mencionado exatamente como está na imagem original.`
 
-    // Usa o contexto da imagem anterior se existir (edição contextual de verdade)
-    if (output.image_response_id) {
-      requestBody.previous_response_id = output.image_response_id
-    }
+    // 5. Chamar /images/edits com a imagem real como input (edição de verdade)
+    const form = new FormData()
+    form.append('model', 'gpt-image-1')
+    form.append('image', new Blob([imgBuffer], { type: 'image/png' }), 'image.png')
+    form.append('prompt', editPrompt)
+    form.append('size', getSize(output.format))
+    form.append('quality', 'high')
 
-    const res = await fetch(`${OPENAI_BASE}/responses`, {
+    const res = await fetch(`${OPENAI_BASE}/images/edits`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${OPENAI_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody),
+      headers: { 'Authorization': `Bearer ${OPENAI_KEY}` },
+      body: form,
     })
 
     const data = await res.json()
     if (data.error) throw new Error(data.error.message)
 
-    const imageOutput = data.output?.find((o: any) => o.type === 'image_generation_call')
-    if (!imageOutput?.result) {
-      throw new Error('Imagem editada não retornada')
-    }
+    const b64 = data.data?.[0]?.b64_json
+    if (!b64) throw new Error('Imagem editada não retornada')
 
-    // 4. Upload da nova imagem (sobrescreve)
+    // 6. Upload da nova imagem (sobrescreve a antiga)
     const fileName = output.storage_path ?? `${workspace_id}/generated/${output_id}_edited.png`
-    const buffer = Buffer.from(imageOutput.result, 'base64')
+    const buffer = Buffer.from(b64, 'base64')
 
     const { error: upErr } = await supabase.storage
       .from('posts')
@@ -85,27 +87,27 @@ export const handler = async (event: any) => {
     if (upErr) throw new Error(`Upload: ${upErr.message}`)
 
     const { data: urlData } = supabase.storage.from('posts').getPublicUrl(fileName)
-    // Cache-bust para a UI recarregar a imagem nova
     const publicUrl = `${urlData.publicUrl}?v=${Date.now()}`
 
-    // 5. Atualizar o output
+    // 7. Atualizar o output
     await supabase.from('creative_outputs').update({
       public_url: publicUrl,
-      image_response_id: data.id ?? output.image_response_id,
       edit_count: editCount + 1,
     }).eq('id', output_id)
 
     return {
       statusCode: 200,
-      body: JSON.stringify({
-        public_url: publicUrl,
-        edit_count: editCount + 1,
-        charged: editCount >= 1,
-      }),
+      body: JSON.stringify({ public_url: publicUrl, edit_count: editCount + 1, charged: editCount >= 1 }),
     }
 
   } catch (e: any) {
     console.error('edit-image error:', e.message)
     return { statusCode: 500, body: JSON.stringify({ error: e.message ?? 'Erro ao editar imagem' }) }
   }
+}
+
+function getSize(format: string): string {
+  // gpt-image-1 aceita: 1024x1024, 1024x1536 (retrato), 1536x1024 (paisagem)
+  if (format === 'story' || format === 'capa_reels') return '1024x1536'
+  return '1024x1536' // posts 4:5 e carrossel usam retrato
 }
