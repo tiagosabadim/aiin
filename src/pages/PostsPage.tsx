@@ -446,8 +446,10 @@ export function PostsPage({ workspaceId, userId }: Props) {
                       <button className="btn btn-md" style={{ flex:1, border:'1px solid rgba(7,13,31,.12)', background:'transparent', color:'#374151' }} onClick={() => { const t=new Date(); t.setDate(t.getDate()+1); setScheduleDate(t.toISOString().split('T')[0]); setScheduleTime('18:00'); setSchedulingId(output.id) }}>📅 Agendar</button>
                     )}
                     {output.status !== 'published' && (
-                      <button className="btn btn-sm" style={{ border:'1px solid rgba(123,44,255,.2)', background:'transparent', color:'#7B2CFF' }} onClick={() => { setEditImageId(output.id); setEditInstruction(''); setEditImageErr(null) }} title="Editar imagem">🎨</button>
-                      <button className="btn btn-sm" style={{ border:'1px solid rgba(7,13,31,.1)', background:'transparent', color:'#374151' }} onClick={() => { setEditingId(output.id); setEditCaption(output.caption ?? '') }} title="Editar legenda">✎</button>
+                      <>
+                        <button className="btn btn-sm" style={{ border:'1px solid rgba(123,44,255,.2)', background:'transparent', color:'#7B2CFF' }} onClick={() => { setEditImageId(output.id); setEditInstruction(''); setEditImageErr(null) }} title="Editar imagem">🎨</button>
+                        <button className="btn btn-sm" style={{ border:'1px solid rgba(7,13,31,.1)', background:'transparent', color:'#374151' }} onClick={() => { setEditingId(output.id); setEditCaption(output.caption ?? '') }} title="Editar legenda">✎</button>
+                      </>
                     )}
                     {output.status !== 'rejected' && output.status !== 'published' && (
                       <button className="btn btn-sm" style={{ border:'1px solid rgba(226,75,74,.2)', background:'transparent', color:'#E24B4A' }} onClick={() => handleReject(output.id)}>✕</button>
