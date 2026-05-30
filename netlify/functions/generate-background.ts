@@ -22,6 +22,7 @@ interface Slide {
   cta?: string
   visual_prompt: string
   public_url?: string
+  image_response_id?: string | null
 }
 
 interface GeneratedContent {
@@ -116,6 +117,7 @@ export const handler = async (event: any) => {
             const imageResult = await generateImageWithBrandContext(
               slide, mergedBrand, job_type, brandContextId
             )
+            content.slides[s].image_response_id = imageResult.responseId
             const fileName = `${workspace_id}/generated/${job_id}_post${i+1}_slide${s+1}.png`
             const buffer = Buffer.from(imageResult.b64, 'base64')
 
@@ -148,6 +150,7 @@ export const handler = async (event: any) => {
           caption: content.caption,
           hashtags: content.hashtags,
           image_prompt: firstSlide?.visual_prompt ?? null,
+          image_response_id: firstSlide?.image_response_id ?? null,
           status: 'pending',
           ai_score: content.ai_score,
         }).select().single()
@@ -285,7 +288,7 @@ Mantenha consistência total com esta identidade em todas as gerações.`,
 // ============================================================
 async function generateImageWithBrandContext(
   slide: Slide, brand: any, jobType: string, previousResponseId: string | null
-): Promise<{ b64: string }> {
+): Promise<{ b64: string; responseId: string | null }> {
 
   const brandColors = brand.color_palette?.map((c: any) => `${c.name}: ${c.hex}`).join(', ') ?? ''
   const activeSlogans = brand.slogans?.filter((s: any) => s.active).map((s: any) => s.text).join(', ') ?? ''
@@ -347,7 +350,7 @@ REQUISITOS TÉCNICOS:
     throw new Error('Imagem não retornada pela Responses API')
   }
 
-  return { b64: imageOutput.result }
+  return { b64: imageOutput.result, responseId: data.id ?? null }
 }
 
 // ============================================================

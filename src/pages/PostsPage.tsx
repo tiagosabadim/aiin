@@ -145,6 +145,10 @@ export function PostsPage({ workspaceId, userId }: Props) {
   const [modalOutput, setModalOutput] = useState<CreativeOutput | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editCaption, setEditCaption] = useState('')
+  const [editImageId, setEditImageId] = useState<string | null>(null)
+  const [editInstruction, setEditInstruction] = useState('')
+  const [editingImage, setEditingImage] = useState(false)
+  const [editImageErr, setEditImageErr] = useState<string | null>(null)
   const [schedulingId, setSchedulingId] = useState<string | null>(null)
   const [scheduleDate, setScheduleDate] = useState('')
   const [scheduleTime, setScheduleTime] = useState('18:00')
@@ -192,6 +196,25 @@ export function PostsPage({ workspaceId, userId }: Props) {
     const { data } = await supabase.from('carousel_pages').select('*')
       .eq('creative_output_id', outputId).order('page_number')
     if (data?.length) setSlides(prev => ({ ...prev, [outputId]: data }))
+  }
+
+  const submitImageEdit = async () => {
+    if (!editImageId || !editInstruction.trim()) return
+    setEditingImage(true); setEditImageErr(null)
+    try {
+      const res = await fetch('/api/edit-image', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ output_id: editImageId, instruction: editInstruction, workspace_id: workspace.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Erro ao editar')
+      setOutputs(prev => prev.map(o => o.id === editImageId ? { ...o, public_url: data.public_url, edit_count: data.edit_count } : o))
+      setEditImageId(null); setEditInstruction('')
+    } catch (e: any) {
+      setEditImageErr(e.message ?? 'Erro ao editar imagem')
+    } finally {
+      setEditingImage(false)
+    }
   }
 
   const handleApprove = async (id: string) => {
@@ -423,7 +446,8 @@ export function PostsPage({ workspaceId, userId }: Props) {
                       <button className="btn btn-md" style={{ flex:1, border:'1px solid rgba(7,13,31,.12)', background:'transparent', color:'#374151' }} onClick={() => { const t=new Date(); t.setDate(t.getDate()+1); setScheduleDate(t.toISOString().split('T')[0]); setScheduleTime('18:00'); setSchedulingId(output.id) }}>📅 Agendar</button>
                     )}
                     {output.status !== 'published' && (
-                      <button className="btn btn-sm" style={{ border:'1px solid rgba(7,13,31,.1)', background:'transparent', color:'#374151' }} onClick={() => { setEditingId(output.id); setEditCaption(output.caption ?? '') }}>✎</button>
+                      <button className="btn btn-sm" style={{ border:'1px solid rgba(123,44,255,.2)', background:'transparent', color:'#7B2CFF' }} onClick={() => { setEditImageId(output.id); setEditInstruction(''); setEditImageErr(null) }} title="Editar imagem">🎨</button>
+                      <button className="btn btn-sm" style={{ border:'1px solid rgba(7,13,31,.1)', background:'transparent', color:'#374151' }} onClick={() => { setEditingId(output.id); setEditCaption(output.caption ?? '') }} title="Editar legenda">✎</button>
                     )}
                     {output.status !== 'rejected' && output.status !== 'published' && (
                       <button className="btn btn-sm" style={{ border:'1px solid rgba(226,75,74,.2)', background:'transparent', color:'#E24B4A' }} onClick={() => handleReject(output.id)}>✕</button>
@@ -437,6 +461,55 @@ export function PostsPage({ workspaceId, userId }: Props) {
           </div>
         )}
       </div>
+
+      {/* Modal editar imagem */}
+      {editImageId && (() => {
+        const target = outputs.find(o => o.id === editImageId)
+        const isFirstFree = (target?.edit_count ?? 0) < 1
+        return (
+          <div onClick={() => !editingImage && setEditImageId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(7,13,31,.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 20, padding: 28, width: '100%', maxWidth: 480, boxShadow: '0 24px 80px rgba(0,0,0,.3)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                <span style={{ fontSize: 22 }}>🎨</span>
+                <h3 style={{ fontSize: 18, fontWeight: 700, color: '#070D1F' }}>Editar imagem</h3>
+              </div>
+              <p style={{ fontSize: 13, color: '#9CA3AF', marginBottom: 16 }}>Descreva o ajuste que você quer na imagem. A IA aplica mantendo o resto.</p>
+
+              {target?.public_url && (
+                <img src={target.public_url} alt="" style={{ width: '100%', maxHeight: 220, objectFit: 'contain', borderRadius: 12, marginBottom: 16, background: '#F7F8FA' }} />
+              )}
+
+              <textarea
+                value={editInstruction}
+                onChange={e => setEditInstruction(e.target.value)}
+                autoFocus
+                placeholder="ex: escurece um pouco a foto · coloca um degradê atrás da frase · deixa o texto maior · troca o fundo por algo mais clean"
+                style={{ width: '100%', minHeight: 90, padding: '12px 14px', border: '1.5px solid rgba(7,13,31,.12)', borderRadius: 12, fontSize: 13, fontFamily: 'inherit', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }}
+              />
+
+              {!isFirstFree && (
+                <div style={{ marginTop: 10, padding: '8px 12px', background: '#FAEEDA', border: '1px solid rgba(186,117,23,.2)', borderRadius: 8, fontSize: 12, color: '#633806' }}>
+                  Esta edição vai custar <strong>1 crédito</strong>.
+                </div>
+              )}
+
+              {editImageErr && (
+                <div style={{ marginTop: 10, padding: '8px 12px', background: '#FCEBEB', border: '1px solid rgba(226,75,74,.2)', borderRadius: 8, fontSize: 12, color: '#E24B4A' }}>{editImageErr}</div>
+              )}
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+                <button onClick={() => setEditImageId(null)} disabled={editingImage} className="btn btn-md" style={{ flex: 1, border: '1px solid rgba(7,13,31,.12)', background: 'transparent', color: '#374151' }}>Cancelar</button>
+                <button onClick={submitImageEdit} disabled={editingImage || !editInstruction.trim()} className="btn btn-primary btn-md" style={{ flex: 2, opacity: editingImage || !editInstruction.trim() ? .5 : 1 }}>
+                  {editingImage
+                    ? <><div style={{ width: 15, height: 15, border: '2.5px solid rgba(255,255,255,.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 1s linear infinite' }} /> Editando...</>
+                    : <>✦ Aplicar ajuste</>
+                  }
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

@@ -203,6 +203,8 @@ export interface CreativeOutput {
   scheduled_at: string | null
   published_at: string | null
   instagram_post_id: string | null
+  image_response_id: string | null
+  edit_count: number
   created_at: string
   updated_at: string
 }
