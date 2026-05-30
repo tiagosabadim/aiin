@@ -4,7 +4,7 @@
 export interface MarketingDate {
   date: string        // YYYY-MM-DD
   label: string
-  type: 'holiday' | 'campaign' | 'awareness' | 'season'
+  type: 'holiday' | 'campaign' | 'awareness' | 'season' | 'profession'
   color: string
   emoji: string
   prepDays?: number  // dias antes para começar campanha (se aplicável)
@@ -88,7 +88,6 @@ export function getBrazilianCalendar(year: number): MarketingDate[] {
       prepDays: 0, prepLabel: '' },
     { date: `${year}-10-12`, label: 'Dia das Crianças',          type: 'campaign', color: '#FF6A00', emoji: '🧸',
       prepDays: 14, prepLabel: '🔔 Início campanha Crianças' },
-    { date: `${year}-10-15`, label: 'Dia do Professor',          type: 'awareness', color: '#7B2CFF', emoji: '📚' },
     { date: `${year}-10-31`, label: 'Halloween',                 type: 'campaign', color: '#FF6A00', emoji: '🎃',
       prepDays: 7, prepLabel: '🔔 Início campanha Halloween' },
 
@@ -109,6 +108,43 @@ export function getBrazilianCalendar(year: number): MarketingDate[] {
   ]
 
   dates.push(...commercial)
+
+  // ── DATAS DE PROFISSÕES (homenagear o público da marca) ──
+  const professions: MarketingDate[] = [
+    { date: `${year}-01-31`, label: 'Dia do Empreendedor',          type: 'profession', color: '#7B2CFF', emoji: '💼' },
+    { date: `${year}-02-09`, label: 'Dia do Zelador',               type: 'profession', color: '#1D9E75', emoji: '🧹' },
+    { date: `${year}-03-04`, label: 'Dia do Vendedor',              type: 'profession', color: '#FF6A00', emoji: '🛍' },
+    { date: `${year}-03-23`, label: 'Dia do Corretor de Imóveis',   type: 'profession', color: '#185FA5', emoji: '🏠' },
+    { date: `${year}-04-12`, label: 'Dia do Obstetra',              type: 'profession', color: '#F72585', emoji: '🩺' },
+    { date: `${year}-04-19`, label: 'Dia do Publicitário',          type: 'profession', color: '#7B2CFF', emoji: '📢' },
+    { date: `${year}-04-22`, label: 'Dia do Designer',              type: 'profession', color: '#F72585', emoji: '🎨' },
+    { date: `${year}-05-02`, label: 'Dia do Esteticista',           type: 'profession', color: '#F72585', emoji: '💆' },
+    { date: `${year}-05-31`, label: 'Dia do Cabeleireiro',          type: 'profession', color: '#FF6A00', emoji: '💇' },
+    { date: `${year}-06-15`, label: 'Dia do Personal Trainer',      type: 'profession', color: '#1D9E75', emoji: '💪' },
+    { date: `${year}-07-02`, label: 'Dia do Bombeiro',              type: 'profession', color: '#E24B4A', emoji: '🚒' },
+    { date: `${year}-07-25`, label: 'Dia do Motorista',             type: 'profession', color: '#374151', emoji: '🚗' },
+    { date: `${year}-07-27`, label: 'Dia do Despachante',           type: 'profession', color: '#6B7280', emoji: '📋' },
+    { date: `${year}-08-04`, label: 'Dia do Padre',                 type: 'profession', color: '#6B7280', emoji: '⛪' },
+    { date: `${year}-08-22`, label: 'Dia do Contador',              type: 'profession', color: '#185FA5', emoji: '🧮' },
+    { date: `${year}-08-25`, label: 'Dia do Feirante',              type: 'profession', color: '#1D9E75', emoji: '🥬' },
+    { date: `${year}-08-31`, label: 'Dia do Nutricionista',         type: 'profession', color: '#1D9E75', emoji: '🥗' },
+    { date: `${year}-09-09`, label: 'Dia do Médico Veterinário',    type: 'profession', color: '#1D9E75', emoji: '🐾' },
+    { date: `${year}-09-10`, label: 'Dia do Pedagogo',              type: 'profession', color: '#7B2CFF', emoji: '📖' },
+    { date: `${year}-09-27`, label: 'Dia do Encanador',             type: 'profession', color: '#185FA5', emoji: '🔧' },
+    { date: `${year}-09-28`, label: 'Dia do Cabeleireiro (2)',      type: 'profession', color: '#FF6A00', emoji: '✂️' },
+    { date: `${year}-09-30`, label: 'Dia da Secretária',            type: 'profession', color: '#F72585', emoji: '📇' },
+    { date: `${year}-10-15`, label: 'Dia do Professor',             type: 'profession', color: '#7B2CFF', emoji: '📚' },
+    { date: `${year}-10-18`, label: 'Dia do Médico',                type: 'profession', color: '#1D9E75', emoji: '⚕️' },
+    { date: `${year}-10-23`, label: 'Dia do Aviador',               type: 'profession', color: '#185FA5', emoji: '✈️' },
+    { date: `${year}-10-25`, label: 'Dia do Dentista',              type: 'profession', color: '#185FA5', emoji: '🦷' },
+    { date: `${year}-10-28`, label: 'Dia do Servidor Público',      type: 'profession', color: '#6B7280', emoji: '🏛' },
+    { date: `${year}-10-30`, label: 'Dia do Comerciário',           type: 'profession', color: '#FF6A00', emoji: '🏪' },
+    { date: `${year}-11-13`, label: 'Dia do Pedreiro',              type: 'profession', color: '#FF6A00', emoji: '🧱' },
+    { date: `${year}-12-09`, label: 'Dia do Fonoaudiólogo',         type: 'profession', color: '#F72585', emoji: '🗣' },
+    { date: `${year}-12-10`, label: 'Dia do Arquiteto',             type: 'profession', color: '#7B2CFF', emoji: '📐' },
+    { date: `${year}-12-20`, label: 'Dia do Mecânico',              type: 'profession', color: '#374151', emoji: '🔩' },
+  ]
+  dates.push(...professions)
 
   // ── ADICIONAR DATAS DE INÍCIO DE CAMPANHA ─────────────────
   const withPrep: MarketingDate[] = []

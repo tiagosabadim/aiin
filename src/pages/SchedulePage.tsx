@@ -46,6 +46,7 @@ export function SchedulePage({ workspaceId, navigate }: Props) {
   const [marketingDates, setMarketingDates] = useState<Record<number, MarketingDate[]>>({})
   const [upcomingMarketing, setUpcomingMarketing] = useState<MarketingDate[]>([])
   const [showMarketing, setShowMarketing] = useState(true)
+  const [dateFilter, setDateFilter] = useState<'all'|'profession'>('all')
   const [showExtModal, setShowExtModal] = useState(false)
   const [extDate, setExtDate]           = useState('')
   const [extTime, setExtTime]           = useState('18:00')
@@ -370,11 +371,17 @@ export function SchedulePage({ workspaceId, navigate }: Props) {
             {/* Próximas datas comemorativas */}
             {upcomingMarketing.length > 0 && (
               <div style={{ background: '#fff', border: '1px solid rgba(7,13,31,.08)', borderRadius: 16, padding: '16px 18px' }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#070D1F', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span>🗓</span> {MONTHS[viewMonth]}
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: 12 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#070D1F', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>🗓</span> {MONTHS[viewMonth]}
+                  </div>
+                  <div style={{ display:'flex', gap:4 }}>
+                    <button onClick={()=>setDateFilter('all')} style={{ fontSize:10, fontWeight:600, padding:'3px 8px', borderRadius:99, cursor:'pointer', fontFamily:'inherit', border:'none', background:dateFilter==='all'?'#070D1F':'#F3F4F6', color:dateFilter==='all'?'#fff':'#6B7280' }}>Todas</button>
+                    <button onClick={()=>setDateFilter('profession')} style={{ fontSize:10, fontWeight:600, padding:'3px 8px', borderRadius:99, cursor:'pointer', fontFamily:'inherit', border:'none', background:dateFilter==='profession'?'#070D1F':'#F3F4F6', color:dateFilter==='profession'?'#fff':'#6B7280' }}>💼 Profissões</button>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {upcomingMarketing.map((d, i) => {
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 360, overflowY: 'auto' }}>
+                  {upcomingMarketing.filter(d => dateFilter==='all' || d.type==='profession').map((d, i) => {
                     const dt = new Date(d.date + 'T12:00:00')
                     const daysLeft = Math.ceil((dt.getTime() - new Date().getTime()) / 86400000)
                     return (
