@@ -8,8 +8,11 @@ const OPENAI_BASE = 'https://api.openai.com/v1'
 const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
 function getImageSize(jobType: string): string {
-  if (jobType === 'story' || jobType === 'capa_reels') return '1080x1920'
-  return '1080x1350'
+  // Dimensões divisíveis por 16 (requisito da API de image_generation)
+  if (jobType === 'story' || jobType === 'story_sequencia' || jobType === 'capa_reels') {
+    return '864x1536'
+  }
+  return '1024x1280'
 }
 
 export const handler = async (event: any) => {
@@ -23,10 +26,10 @@ export const handler = async (event: any) => {
       return { statusCode: 400, body: JSON.stringify({ error: 'output_id e instruction obrigatórios' }) }
     }
 
-    // 1. Buscar output + brand + carousel pages
+    // 1. Buscar output
     const { data: output, error: outErr } = await supabase
       .from('creative_outputs')
-      .select('*, brand:brand_profiles(*, brand_assets(*))')
+      .select('*')
       .eq('id', output_id)
       .single()
 
@@ -34,7 +37,13 @@ export const handler = async (event: any) => {
       return { statusCode: 404, body: JSON.stringify({ error: 'Post não encontrado' }) }
     }
 
-    const brand = output.brand
+    // Buscar brand + assets separadamente (mais robusto que join aninhado)
+    const { data: brand } = await supabase
+      .from('brand_profiles')
+      .select('*, brand_assets(*)')
+      .eq('id', output.brand_id)
+      .single()
+
     const editCount = output.edit_count ?? 0
 
     // Marca como regenerando — persiste no banco, visível em qualquer device
@@ -98,7 +107,7 @@ IDENTIDADE DA MARCA (aplicar obrigatoriamente):
 • Segmento: ${brand?.segment ?? ''}
 
 REQUISITOS TÉCNICOS:
-• Formato: ${size === '1080x1350' ? '4:5 retrato' : '9:16 vertical'}
+• Formato: ${size === '1024x1280' ? '4:5 retrato' : '9:16 vertical'}
 • Qualidade máxima, texto legível em português, alta resolução`
 
     // 6. Montar conteúdo com logo + referências como contexto visual
@@ -107,6 +116,8 @@ REQUISITOS TÉCNICOS:
     for (const a of refAssets) {
       if (a.public_url) content.push({ type: 'input_image', image_url: a.public_url })
     }
+
+    console.log(`[regen] output ${output_id} | size ${size} | logo: ${!!logoAsset} | refs: ${refAssets.length}`)
 
     const res = await fetch(`${OPENAI_BASE}/responses`, {
       method: 'POST',
@@ -119,10 +130,11 @@ REQUISITOS TÉCNICOS:
     })
 
     const data = await res.json()
-    if (data.error) throw new Error(data.error.message)
+    if (data.error) { console.error('[regen] OpenAI error:', JSON.stringify(data.error)); throw new Error(data.error.message) }
 
     const imageOutput = data.output?.find((o: any) => o.type === 'image_generation_call')
-    if (!imageOutput?.result) throw new Error('Imagem não retornada')
+    if (!imageOutput?.result) { console.error('[regen] sem imagem:', JSON.stringify(data).slice(0,400)); throw new Error('Imagem não retornada') }
+    console.log('[regen] imagem gerada, fazendo upload...')
 
     // 7. Upload (sobrescreve a antiga)
     const fileName = output.storage_path ?? `${workspace_id}/generated/${output_id}_regen.png`
