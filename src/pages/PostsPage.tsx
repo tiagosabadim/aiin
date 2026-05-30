@@ -204,7 +204,7 @@ export function PostsPage({ workspaceId, userId }: Props) {
     try {
       const res = await fetch('/api/edit-image', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ output_id: editImageId, instruction: editInstruction, workspace_id: workspace.id }),
+        body: JSON.stringify({ output_id: editImageId, instruction: editInstruction, workspace_id: workspaceId }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Erro ao editar')
