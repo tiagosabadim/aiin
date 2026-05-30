@@ -206,7 +206,7 @@ export function PostsPage({ workspaceId, userId }: Props) {
     const prevUrl = outputs.find(o => o.id === targetId)?.public_url
     try {
       // Background function: dispara e retorna 202 imediato
-      await fetch('/api/edit-image-background', {
+      await fetch('/api/regenerate-image-background', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ output_id: targetId, instruction: editInstruction, workspace_id: workspaceId }),
       })
