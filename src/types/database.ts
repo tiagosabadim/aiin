@@ -205,6 +205,7 @@ export interface CreativeOutput {
   instagram_post_id: string | null
   image_response_id: string | null
   edit_count: number
+  regenerating: boolean
   created_at: string
   updated_at: string
 }

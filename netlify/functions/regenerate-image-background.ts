@@ -37,6 +37,9 @@ export const handler = async (event: any) => {
     const brand = output.brand
     const editCount = output.edit_count ?? 0
 
+    // Marca como regenerando — persiste no banco, visível em qualquer device
+    await supabase.from('creative_outputs').update({ regenerating: true }).eq('id', output_id)
+
     // 2. Cobrar crédito da 2ª regeneração em diante
     if (editCount >= 1) {
       const { data: creditOk, error: creditErr } = await supabase.rpc('debit_credits', {
@@ -138,6 +141,7 @@ REQUISITOS TÉCNICOS:
       public_url: publicUrl,
       image_response_id: data.id ?? output.image_response_id,
       edit_count: editCount + 1,
+      regenerating: false,
     }).eq('id', output_id)
 
     return {
@@ -147,6 +151,11 @@ REQUISITOS TÉCNICOS:
 
   } catch (e: any) {
     console.error('regenerate-image error:', e.message)
+    // Libera o post mesmo em caso de erro
+    try {
+      const { output_id } = JSON.parse(event.body ?? '{}')
+      if (output_id) await supabase.from('creative_outputs').update({ regenerating: false }).eq('id', output_id)
+    } catch {}
     return { statusCode: 500, body: JSON.stringify({ error: e.message ?? 'Erro ao regenerar' }) }
   }
 }
