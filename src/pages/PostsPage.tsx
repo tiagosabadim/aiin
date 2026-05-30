@@ -191,6 +191,14 @@ export function PostsPage({ workspaceId, userId }: Props) {
     return () => clearInterval(t)
   }, [processing, fetchProcessing, fetchOutputs])
 
+  // Polling enquanto qualquer post estiver regenerando a imagem
+  const anyRegenerating = outputs.some(o => o.regenerating)
+  useEffect(() => {
+    if (!anyRegenerating) return
+    const t = setInterval(() => fetchOutputs(), 4000)
+    return () => clearInterval(t)
+  }, [anyRegenerating, fetchOutputs])
+
   const fetchSlides = async (outputId: string) => {
     if (slides[outputId]) return
     const { data } = await supabase.from('carousel_pages').select('*')
