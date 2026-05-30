@@ -30,6 +30,9 @@ export const handler = async (event: any) => {
 
     const editCount = output.edit_count ?? 0
 
+    // Marca como "editando" para o frontend mostrar loading
+    await supabase.from('creative_outputs').update({ status: output.status }).eq('id', output_id)
+
     // 2. Da segunda edição em diante, cobra 1 crédito
     if (editCount >= 1) {
       const { data: creditOk, error: creditErr } = await supabase.rpc('debit_credits', {

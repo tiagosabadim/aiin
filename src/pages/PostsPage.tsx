@@ -149,6 +149,7 @@ export function PostsPage({ workspaceId, userId }: Props) {
   const [editInstruction, setEditInstruction] = useState('')
   const [editingImage, setEditingImage] = useState(false)
   const [editImageErr, setEditImageErr] = useState<string | null>(null)
+  const [editingImageIds, setEditingImageIds] = useState<Set<string>>(new Set())
   const [schedulingId, setSchedulingId] = useState<string | null>(null)
   const [scheduleDate, setScheduleDate] = useState('')
   const [scheduleTime, setScheduleTime] = useState('18:00')
@@ -201,15 +202,33 @@ export function PostsPage({ workspaceId, userId }: Props) {
   const submitImageEdit = async () => {
     if (!editImageId || !editInstruction.trim()) return
     setEditingImage(true); setEditImageErr(null)
+    const targetId = editImageId
+    const prevUrl = outputs.find(o => o.id === targetId)?.public_url
     try {
-      const res = await fetch('/api/edit-image', {
+      // Background function: dispara e retorna 202 imediato
+      await fetch('/api/edit-image-background', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ output_id: editImageId, instruction: editInstruction, workspace_id: workspaceId }),
+        body: JSON.stringify({ output_id: targetId, instruction: editInstruction, workspace_id: workspaceId }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Erro ao editar')
-      setOutputs(prev => prev.map(o => o.id === editImageId ? { ...o, public_url: data.public_url, edit_count: data.edit_count } : o))
+
+      // Fecha o modal e marca o post como "editando" visualmente
       setEditImageId(null); setEditInstruction('')
+      setEditingImageIds(prev => new Set(prev).add(targetId))
+
+      // Polling: verifica a cada 3s se a imagem mudou (até 90s)
+      let tries = 0
+      const poll = setInterval(async () => {
+        tries++
+        const { data } = await supabase.from('creative_outputs').select('public_url, edit_count').eq('id', targetId).single()
+        if (data && data.public_url !== prevUrl) {
+          setOutputs(prev => prev.map(o => o.id === targetId ? { ...o, public_url: data.public_url, edit_count: data.edit_count } : o))
+          setEditingImageIds(prev => { const n = new Set(prev); n.delete(targetId); return n })
+          clearInterval(poll)
+        } else if (tries >= 30) {
+          setEditingImageIds(prev => { const n = new Set(prev); n.delete(targetId); return n })
+          clearInterval(poll)
+        }
+      }, 3000)
     } catch (e: any) {
       setEditImageErr(e.message ?? 'Erro ao editar imagem')
     } finally {
@@ -352,7 +371,13 @@ export function PostsPage({ workspaceId, userId }: Props) {
               <div key={output.id} className="post-card fade-in" style={{ opacity: output.status === 'rejected' ? .5 : 1 }}>
 
                 {/* Imagem 4:5 real */}
-                <div className="post-card-image" onClick={() => output.public_url && openModal(output)}>
+                <div className="post-card-image" onClick={() => output.public_url && !editingImageIds.has(output.id) && openModal(output)} style={{ position: 'relative' }}>
+                  {editingImageIds.has(output.id) && (
+                    <div style={{ position: 'absolute', inset: 0, zIndex: 5, background: 'rgba(7,13,31,.7)', backdropFilter: 'blur(2px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                      <div style={{ width: 28, height: 28, border: '3px solid rgba(255,255,255,.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                      <span style={{ fontSize: 12, color: 'white', fontWeight: 500 }}>🎨 Editando imagem...</span>
+                    </div>
+                  )}
                   {output.public_url
                     ? <img src={output.public_url} alt="Arte gerada" loading="lazy" />
                     : (
