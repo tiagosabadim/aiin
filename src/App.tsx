@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useAuth } from './hooks/useAuth'
 import { useWorkspace } from './hooks/useWorkspace'
 import { LoginPage } from './pages/LoginPage'
+import { LandingPage } from './pages/LandingPage'
+import { PaywallModal } from './pages/PaywallModal'
 import { OnboardingPage } from './pages/OnboardingPage'
 import { AppLayout } from './layouts/AppLayout'
 import { DashboardPage } from './pages/DashboardPage'
@@ -20,6 +22,7 @@ export default function App() {
   const { workspace, brand, subscription, credits, loading: wsLoading, refetch } = useWorkspace()
   const [route, setRoute] = useState<Route>('dashboard')
   const [onboardingStep, setOnboardingStep] = useState<number | null>(null)
+  const [showLogin, setShowLogin] = useState(false)
 
   useEffect(() => {
     const fromHash = window.location.hash.replace('#', '') as Route
@@ -29,7 +32,13 @@ export default function App() {
   const navigate = (to: Route) => { setRoute(to); window.location.hash = to }
 
   if (authLoading || wsLoading) return <SplashScreen />
-  if (!user) return <LoginPage />
+  if (!user) {
+    // #login no hash ou clicou em entrar → login; senão landing
+    const wantsLogin = showLogin || window.location.hash === '#login'
+    return wantsLogin
+      ? <LoginPage />
+      : <LandingPage onStart={() => { setShowLogin(true); window.location.hash = 'login' }} />
+  }
   if (!workspace || !brand || !brand.onboarding_completed) {
     return <OnboardingPage onComplete={refetch} existingBrand={brand} existingWorkspace={workspace} />
   }
@@ -52,7 +61,12 @@ export default function App() {
   const openOnboardingAt = (step: number) => setOnboardingStep(step)
   const ctx = { workspace, brand, subscription, credits, navigate, openOnboardingAt }
 
+  // Paywall: acabaram os créditos e não há assinatura ativa
+  const needsPaywall = credits <= 0 && (!subscription || subscription.status !== 'active')
+
   return (
+    <>
+      {needsPaywall && <PaywallModal workspaceId={workspace.id} userEmail={user.email} />}
     <AppLayout route={route} navigate={navigate} credits={credits} pendingCount={0}>
       {route === 'dashboard'  && <DashboardPage {...ctx} />}
       {route === 'briefing' && (
@@ -77,6 +91,7 @@ export default function App() {
       )}
       {route === 'settings'   && <SettingsPage   workspace={workspace} brand={brand} />}
     </AppLayout>
+    </>
   )
 }
 

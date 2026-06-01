@@ -206,8 +206,17 @@ export function OnboardingPage({ onComplete, initialStep, existingBrand, existin
       await supabase.from('brand_profiles').update({ onboarding_completed: true, ai_context_pct: 75 }).eq('id', brandId)
       const { data: brand } = await supabase.from('brand_profiles').select('*').eq('id', brandId).single()
       setBrandData(brand)
-      const { data: freePlan } = await supabase.from('plans').select('id').eq('name', 'Presença').single()
-      if (freePlan) await supabase.from('subscriptions').insert({ workspace_id: workspaceId, plan_id: freePlan.id, status: 'trialing', monthly_credits_available: 10, extra_credits_available: 0 })
+      // 1 crédito grátis para o usuário testar o primeiro post (status trialing, sem plano pago)
+      const { data: freePlan } = await supabase.from('plans').select('id').order('display_order').limit(1).single()
+      await supabase.from('subscriptions').insert({
+        workspace_id: workspaceId,
+        plan_id: freePlan?.id ?? null,
+        status: 'trialing',
+        monthly_credits_available: 1,
+        extra_credits_available: 0,
+        current_period_start: new Date().toISOString(),
+        current_period_end: new Date(Date.now() + 30*864e5).toISOString(),
+      })
       advance(6)
     } catch (e: any) { setError(e.message) }
     finally { setLoading(false) }
