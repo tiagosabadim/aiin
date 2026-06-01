@@ -122,13 +122,15 @@ async function syncBrandInsights(brand: any) {
         engagement_rate: Math.round(engagementRate * 100) / 100,
       })
 
-      // Salva métricas no creative_output
-      await supabase.from('creative_outputs').update({
-        output_payload: {
-          insights: { impressions, reach, likes, comments, saved, shares, engagement_rate: engagementRate },
-          synced_at: new Date().toISOString(),
-        }
-      }).eq('id', output.id)
+      // Salva em post_insights (tabela que o dashboard lê) — upsert por instagram_post_id
+      await supabase.from('post_insights').upsert({
+        workspace_id: brand.workspace_id,
+        output_id: output.id,
+        instagram_post_id: output.instagram_post_id,
+        impressions, reach, likes, comments, saved, shares,
+        engagement_rate: Math.round(engagementRate * 100) / 100,
+        synced_at: new Date().toISOString(),
+      }, { onConflict: 'instagram_post_id' })
 
     } catch (err: any) {
       console.error(`Erro no post ${output.instagram_post_id}:`, err.message)

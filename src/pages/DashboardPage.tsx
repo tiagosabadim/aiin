@@ -30,6 +30,7 @@ interface Learning { content: string; learning_type: string; positive: boolean }
 export function DashboardPage({ workspace, brand, subscription, credits, navigate }: Props) {
   const [period, setPeriod]         = useState<'7'|'30'|'90'>('30')
   const [insights, setInsights]     = useState<PostInsight[]>([])
+  const [analysis, setAnalysis]     = useState<any>(null)
   const [metrics, setMetrics]       = useState<BrandMetric | null>(null)
   const [learnings, setLearnings]   = useState<Learning[]>([])
   const [outputStats, setOutputStats] = useState({ total: 0, published: 0, scheduled: 0, rejected: 0, pending: 0 })
@@ -46,6 +47,7 @@ export function DashboardPage({ workspace, brand, subscription, credits, navigat
       { data: ins },
       { data: met },
       { data: learn },
+      { data: prof },
     ] = await Promise.all([
       supabase.from('creative_outputs').select('status').eq('workspace_id', workspace.id),
       supabase.from('post_insights')
@@ -60,6 +62,9 @@ export function DashboardPage({ workspace, brand, subscription, credits, navigat
       supabase.from('brand_learnings')
         .select('*').eq('workspace_id', workspace.id)
         .order('created_at', { ascending: false }).limit(6),
+      supabase.from('profile_analysis')
+        .select('*').eq('workspace_id', workspace.id)
+        .order('created_at', { ascending: false }).limit(1).maybeSingle(),
     ])
 
     const outs = outputs ?? []
@@ -73,6 +78,7 @@ export function DashboardPage({ workspace, brand, subscription, credits, navigat
     setInsights((ins as any) ?? [])
     setMetrics(met ?? null)
     setLearnings((learn as any) ?? [])
+    setAnalysis(prof ?? null)
     setLoading(false)
   }
 
@@ -152,6 +158,52 @@ export function DashboardPage({ workspace, brand, subscription, credits, navigat
           </p>
         </div>
       </div>
+
+      {/* Card de análise de perfil */}
+      {analysis && (
+        <div style={{ background: 'linear-gradient(135deg,#070D1F,#1a1130)', borderRadius: 18, padding: '24px 26px', marginBottom: 16, color: '#fff', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: -40, right: -40, width: 180, height: 180, background: 'radial-gradient(circle, rgba(247,37,133,.25), transparent 70%)', pointerEvents: 'none' }} />
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, flexWrap: 'wrap', position: 'relative' }}>
+            {/* Nota */}
+            <div style={{ textAlign: 'center', flexShrink: 0 }}>
+              <div style={{ position: 'relative', width: 88, height: 88 }}>
+                <svg width="88" height="88" viewBox="0 0 88 88" style={{ transform: 'rotate(-90deg)' }}>
+                  <circle cx="44" cy="44" r="38" fill="none" stroke="rgba(255,255,255,.1)" strokeWidth="7" />
+                  <circle cx="44" cy="44" r="38" fill="none" stroke="url(#scoreGrad)" strokeWidth="7" strokeLinecap="round"
+                    strokeDasharray={`${2 * Math.PI * 38}`} strokeDashoffset={`${2 * Math.PI * 38 * (1 - (analysis.score ?? 0) / 100)}`} />
+                  <defs><linearGradient id="scoreGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#FF6A00" /><stop offset="0.5" stopColor="#F72585" /><stop offset="1" stopColor="#7B2CFF" /></linearGradient></defs>
+                </svg>
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontSize: 26, fontWeight: 800 }}>{analysis.score ?? 0}</span>
+                  <span style={{ fontSize: 9, color: 'rgba(255,255,255,.5)' }}>/ 100</span>
+                </div>
+              </div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.5)', marginTop: 6 }}>Nota do perfil</div>
+            </div>
+            {/* Resumo + melhorias */}
+            <div style={{ flex: 1, minWidth: 260 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>📊 Análise do seu Instagram</div>
+              <p style={{ fontSize: 13, color: 'rgba(255,255,255,.7)', lineHeight: 1.5, marginBottom: 14 }}>{analysis.summary}</p>
+              {(analysis.improvements ?? []).slice(0, 3).map((imp: any, i: number) => (
+                <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 99, flexShrink: 0, marginTop: 1,
+                    background: imp.priority === 'alta' ? 'rgba(226,75,74,.2)' : imp.priority === 'media' ? 'rgba(255,106,0,.2)' : 'rgba(29,158,117,.2)',
+                    color: imp.priority === 'alta' ? '#FF8A89' : imp.priority === 'media' ? '#FFB380' : '#6EE7B7' }}>
+                    {(imp.area ?? '').toUpperCase()}
+                  </span>
+                  <span style={{ fontSize: 12.5, color: 'rgba(255,255,255,.85)', lineHeight: 1.45 }}>{imp.suggestion}</span>
+                </div>
+              ))}
+              {analysis.bio_suggestion && (
+                <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(255,255,255,.06)', borderRadius: 10, border: '1px solid rgba(255,255,255,.1)' }}>
+                  <div style={{ fontSize: 10, color: '#FF8FC7', fontWeight: 700, marginBottom: 4, textTransform: 'uppercase' }}>💡 Sugestão de bio</div>
+                  <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,.9)', lineHeight: 1.5 }}>{analysis.bio_suggestion}</div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Linha 1: stats de posts */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 16 }}>

@@ -562,6 +562,13 @@ export function SettingsPage({ workspace, brand }: { workspace: Workspace; brand
   const save = async (key: string) => {
     if (key === 'instagram') {
       await supabase.from('brand_profiles').update({ instagram_access_token: igToken, instagram_account_id: igAccount }).eq('id', brand.id)
+      // Dispara análise do perfil em background (nota + recomendações no dashboard)
+      if (igToken && igAccount) {
+        fetch('/api/analyze-profile-background', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ workspace_id: brand.workspace_id, brand_id: brand.id }),
+        }).catch(() => {})
+      }
     }
     setSaved(prev => ({ ...prev, [key]: true }))
     setTimeout(() => setSaved(prev => ({ ...prev, [key]: false })), 2500)
