@@ -45,7 +45,19 @@ interface Metrics {
   total_credits_used: number
 }
 
-type Tab = 'metrics' | 'workspaces' | 'jobs'
+interface CostRow {
+  operation: string
+  calls: number
+  total_units: number
+  total_cost_usd: number
+}
+interface CostByWorkspace {
+  workspace_id: string
+  workspace_name: string
+  total_cost_usd: number
+  calls: number
+}
+type Tab = 'metrics' | 'workspaces' | 'jobs' | 'costs'
 
 // ---- Componentes utilitários ----
 const Badge = ({ label, color }: { label: string; color: string }) => (
@@ -67,6 +79,54 @@ const statusColor: Record<string, string> = {
 export function AdminPage() {
   const { user } = useAuth()
   const [tab, setTab] = useState<Tab>('metrics')
+  const [costsByOp, setCostsByOp] = useState<CostRow[]>([])
+  const [costsByWs, setCostsByWs] = useState<CostByWorkspace[]>([])
+  const [costPeriod, setCostPeriod] = useState<'30'|'7'|'all'>('30')
+  const [totalCost, setTotalCost] = useState(0)
+  const [creditsRevenue, setCreditsRevenue] = useState(0)
+
+  const fetchCosts = useCallback(async () => {
+    let q = supabase.from('api_usage').select('operation, units, cost_usd, workspace_id, created_at')
+    if (costPeriod !== 'all') {
+      const since = new Date(); since.setDate(since.getDate() - parseInt(costPeriod))
+      q = q.gte('created_at', since.toISOString())
+    }
+    const { data: usage } = await q
+    const rows = usage ?? []
+
+    // Total
+    const total = rows.reduce((s, r) => s + Number(r.cost_usd ?? 0), 0)
+    setTotalCost(total)
+
+    // Por operação
+    const byOp: Record<string, CostRow> = {}
+    rows.forEach(r => {
+      const op = r.operation
+      if (!byOp[op]) byOp[op] = { operation: op, calls: 0, total_units: 0, total_cost_usd: 0 }
+      byOp[op].calls++
+      byOp[op].total_units += r.units ?? 1
+      byOp[op].total_cost_usd += Number(r.cost_usd ?? 0)
+    })
+    setCostsByOp(Object.values(byOp).sort((a, b) => b.total_cost_usd - a.total_cost_usd))
+
+    // Por workspace
+    const byWs: Record<string, CostByWorkspace> = {}
+    rows.forEach(r => {
+      const id = r.workspace_id ?? 'sem_workspace'
+      if (!byWs[id]) byWs[id] = { workspace_id: id, workspace_name: id, total_cost_usd: 0, calls: 0 }
+      byWs[id].total_cost_usd += Number(r.cost_usd ?? 0)
+      byWs[id].calls++
+    })
+    // Resolver nomes dos workspaces
+    const ids = Object.keys(byWs).filter(i => i !== 'sem_workspace')
+    if (ids.length) {
+      const { data: wsNames } = await supabase.from('workspaces').select('id, name').in('id', ids)
+      wsNames?.forEach(w => { if (byWs[w.id]) byWs[w.id].workspace_name = w.name })
+    }
+    setCostsByWs(Object.values(byWs).sort((a, b) => b.total_cost_usd - a.total_cost_usd))
+  }, [costPeriod])
+
+  useEffect(() => { if (tab === 'costs') fetchCosts() }, [tab, fetchCosts])
   const [metrics, setMetrics] = useState<Metrics | null>(null)
   const [workspaces, setWorkspaces] = useState<WorkspaceRow[]>([])
   const [jobs, setJobs] = useState<JobRow[]>([])
@@ -261,14 +321,14 @@ export function AdminPage() {
 
       {/* Tabs */}
       <div style={{ borderBottom: '1px solid #1e1e2e', padding: '0 32px', display: 'flex', gap: 4 }}>
-        {(['metrics', 'workspaces', 'jobs'] as Tab[]).map(t => (
+        {(['metrics', 'workspaces', 'jobs', 'costs'] as Tab[]).map(t => (
           <button key={t} onClick={() => setTab(t)} style={{
             background: 'none', border: 'none', padding: '12px 16px', fontSize: 13, fontWeight: 500, cursor: 'pointer',
             color: tab === t ? '#f72585' : '#64748b',
             borderBottom: tab === t ? '2px solid #f72585' : '2px solid transparent',
             fontFamily: 'inherit', transition: 'color .15s',
           }}>
-            {t === 'metrics' ? '📊 Métricas' : t === 'workspaces' ? '🏢 Workspaces' : '⚙️ Jobs'}
+            {t === 'metrics' ? '📊 Métricas' : t === 'workspaces' ? '🏢 Workspaces' : t === 'jobs' ? '⚙️ Jobs' : '💰 Custos'}
             {t === 'jobs' && metrics && metrics.jobs_error > 0 && (
               <span style={{ marginLeft: 6, background: '#ef4444', color: 'white', fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 99 }}>{metrics.jobs_error}</span>
             )}
@@ -424,6 +484,83 @@ export function AdminPage() {
                 <Badge label={job.status} color={statusColor[job.status] ?? '#64748b'} />
               </div>
             ))}
+          </div>
+        )}
+
+        {/* ── TAB CUSTOS (ERP) ── */}
+        {!loading && tab === 'costs' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+            {/* Filtro de período */}
+            <div style={{ display: 'flex', gap: 6 }}>
+              {(['7','30','all'] as const).map(p => (
+                <button key={p} onClick={() => setCostPeriod(p)} style={{
+                  background: costPeriod === p ? '#f7258520' : '#1e1e2e',
+                  border: `1px solid ${costPeriod === p ? '#f72585' : '#2d2d3d'}`,
+                  borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 500,
+                  color: costPeriod === p ? '#f72585' : '#64748b', cursor: 'pointer', fontFamily: 'inherit',
+                }}>{p === 'all' ? 'Tudo' : `${p} dias`}</button>
+              ))}
+            </div>
+
+            {/* Cards de resumo */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
+              <div style={{ background: '#1e1e2e', border: '1px solid #2d2d3d', borderRadius: 12, padding: '16px 18px' }}>
+                <div style={{ fontSize: 11, color: '#64748b', marginBottom: 6 }}>Custo total OpenAI</div>
+                <div style={{ fontSize: 24, fontWeight: 700, color: '#ef4444' }}>${totalCost.toFixed(2)}</div>
+                <div style={{ fontSize: 10, color: '#475569', marginTop: 4 }}>≈ R$ {(totalCost * 5.4).toFixed(2)}</div>
+              </div>
+              <div style={{ background: '#1e1e2e', border: '1px solid #2d2d3d', borderRadius: 12, padding: '16px 18px' }}>
+                <div style={{ fontSize: 11, color: '#64748b', marginBottom: 6 }}>Chamadas à API</div>
+                <div style={{ fontSize: 24, fontWeight: 700, color: '#3b82f6' }}>{costsByOp.reduce((s, c) => s + c.calls, 0)}</div>
+                <div style={{ fontSize: 10, color: '#475569', marginTop: 4 }}>no período</div>
+              </div>
+              <div style={{ background: '#1e1e2e', border: '1px solid #2d2d3d', borderRadius: 12, padding: '16px 18px' }}>
+                <div style={{ fontSize: 11, color: '#64748b', marginBottom: 6 }}>Custo médio/chamada</div>
+                <div style={{ fontSize: 24, fontWeight: 700, color: '#8b5cf6' }}>
+                  ${costsByOp.reduce((s, c) => s + c.calls, 0) > 0 ? (totalCost / costsByOp.reduce((s, c) => s + c.calls, 0)).toFixed(3) : '0'}
+                </div>
+                <div style={{ fontSize: 10, color: '#475569', marginTop: 4 }}>por operação</div>
+              </div>
+            </div>
+
+            {/* Custo por operação */}
+            <div style={{ background: '#1e1e2e', border: '1px solid #2d2d3d', borderRadius: 12, padding: '16px 18px' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#f1f5f9', marginBottom: 12 }}>Custo por tipo de operação</div>
+              {costsByOp.length === 0 ? (
+                <div style={{ fontSize: 12, color: '#475569', padding: '12px 0' }}>Nenhum dado de uso ainda.</div>
+              ) : costsByOp.map(c => {
+                const opLabel: Record<string,string> = { content:'📝 Conteúdo (texto)', image:'🖼 Imagem', regenerate:'🎨 Regeneração', schedule:'📅 Cronograma', visual_context:'✨ Contexto visual' }
+                const pct = totalCost > 0 ? (c.total_cost_usd / totalCost) * 100 : 0
+                return (
+                  <div key={c.operation} style={{ marginBottom: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                      <span style={{ fontSize: 12, color: '#94a3b8' }}>{opLabel[c.operation] ?? c.operation}</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#f1f5f9' }}>${c.total_cost_usd.toFixed(2)} · {c.calls}x</span>
+                    </div>
+                    <div style={{ height: 6, background: '#0f0f1a', borderRadius: 99, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${pct}%`, background: 'linear-gradient(90deg,#f72585,#7b2cff)', borderRadius: 99 }} />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Custo por workspace */}
+            <div style={{ background: '#1e1e2e', border: '1px solid #2d2d3d', borderRadius: 12, padding: '16px 18px' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#f1f5f9', marginBottom: 12 }}>Quem mais gasta (por workspace)</div>
+              {costsByWs.length === 0 ? (
+                <div style={{ fontSize: 12, color: '#475569', padding: '12px 0' }}>Nenhum dado ainda.</div>
+              ) : costsByWs.slice(0, 15).map((w, i) => (
+                <div key={w.workspace_id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: i < Math.min(costsByWs.length,15)-1 ? '1px solid #2d2d3d' : 'none' }}>
+                  <span style={{ fontSize: 11, color: '#475569', width: 20 }}>{i+1}</span>
+                  <span style={{ flex: 1, fontSize: 12, color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w.workspace_name}</span>
+                  <span style={{ fontSize: 11, color: '#475569' }}>{w.calls}x</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#ef4444', width: 70, textAlign: 'right' }}>${w.total_cost_usd.toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+
           </div>
         )}
       </div>

@@ -206,6 +206,7 @@ export interface CreativeOutput {
   image_response_id: string | null
   edit_count: number
   regenerating: boolean
+  regen_error: string | null
   created_at: string
   updated_at: string
 }

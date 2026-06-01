@@ -2,6 +2,7 @@
 // Reusa o mesmo motor de geração (gpt-image via Responses API) mantendo Brand DNA
 // 1ª regeneração grátis, demais cobram 1 crédito
 import { createClient } from '@supabase/supabase-js'
+import { trackUsage } from './usage-tracker'
 
 const OPENAI_KEY  = process.env.OPENAI_API_KEY!
 const OPENAI_BASE = 'https://api.openai.com/v1'
@@ -47,7 +48,7 @@ export const handler = async (event: any) => {
     const editCount = output.edit_count ?? 0
 
     // Marca como regenerando — persiste no banco, visível em qualquer device
-    await supabase.from('creative_outputs').update({ regenerating: true }).eq('id', output_id)
+    await supabase.from('creative_outputs').update({ regenerating: true, regen_error: null }).eq('id', output_id)
 
     // 2. Cobrar crédito da 2ª regeneração em diante
     if (editCount >= 1) {
@@ -156,6 +157,12 @@ REQUISITOS TÉCNICOS:
       regenerating: false,
     }).eq('id', output_id)
 
+    // Registra custo da regeneração no ERP
+    await trackUsage({
+      workspace_id, brand_id: brand?.id, operation: 'regenerate',
+      model: 'gpt-image-1', units: 1, image_quality: 'high',
+    })
+
     return {
       statusCode: 200,
       body: JSON.stringify({ public_url: publicUrl, edit_count: editCount + 1 }),
@@ -163,10 +170,16 @@ REQUISITOS TÉCNICOS:
 
   } catch (e: any) {
     console.error('regenerate-image error:', e.message)
-    // Libera o post mesmo em caso de erro
+    // Mensagem amigável conforme o tipo de erro
+    const raw = (e.message ?? '').toLowerCase()
+    let friendly = 'Não foi possível gerar a imagem agora. Volte mais tarde ou entre em contato com o suporte.'
+    if (raw.includes('quota') || raw.includes('billing') || raw.includes('insufficient')) {
+      friendly = 'Serviço de imagens temporariamente indisponível. Volte mais tarde ou entre em contato com o suporte.'
+    }
+    // Libera o post e registra o erro
     try {
       const { output_id } = JSON.parse(event.body ?? '{}')
-      if (output_id) await supabase.from('creative_outputs').update({ regenerating: false }).eq('id', output_id)
+      if (output_id) await supabase.from('creative_outputs').update({ regenerating: false, regen_error: friendly }).eq('id', output_id)
     } catch {}
     return { statusCode: 500, body: JSON.stringify({ error: e.message ?? 'Erro ao regenerar' }) }
   }

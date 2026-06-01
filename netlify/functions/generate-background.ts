@@ -7,6 +7,7 @@
 // ============================================================
 
 import { createClient } from '@supabase/supabase-js'
+import { trackUsage } from './usage-tracker'
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -109,6 +110,7 @@ export const handler = async (event: any) => {
           mergedBrand, job_type, slideCount,
           title, objective, extraContextFinal, hashtags
         )
+        await trackUsage({ workspace_id, brand_id, operation: 'content', model: 'gpt-4o', input_tokens: content._usage?.prompt_tokens ?? 0, output_tokens: content._usage?.completion_tokens ?? 0 })
 
         // 2. Gera todas as imagens EM PARALELO para caber no timeout
         console.log(`Gerando ${content.slides.length} slides em paralelo...`)
@@ -118,6 +120,7 @@ export const handler = async (event: any) => {
               slide, mergedBrand, job_type, brandContextId
             )
             content.slides[s].image_response_id = imageResult.responseId
+            await trackUsage({ workspace_id, brand_id, operation: 'image', model: 'gpt-image-1', units: 1, image_quality: 'high' })
             const fileName = `${workspace_id}/generated/${job_id}_post${i+1}_slide${s+1}.png`
             const buffer = Buffer.from(imageResult.b64, 'base64')
 
@@ -471,6 +474,7 @@ ${JSON.stringify({
   if (data.error) throw new Error(`GPT-4o: ${data.error.message}`)
 
   const result = JSON.parse(data.choices[0].message.content)
+  result._usage = data.usage  // tokens para tracking de custo
 
   // Garante que slides é array e tem pelo menos 1 item
   if (!result.slides || result.slides.length === 0) {

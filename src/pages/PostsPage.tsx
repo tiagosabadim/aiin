@@ -206,6 +206,11 @@ export function PostsPage({ workspaceId, userId }: Props) {
     if (data?.length) setSlides(prev => ({ ...prev, [outputId]: data }))
   }
 
+  const dismissRegenError = async (id: string) => {
+    await supabase.from('creative_outputs').update({ regen_error: null }).eq('id', id)
+    setOutputs(prev => prev.map(o => o.id === id ? { ...o, regen_error: null } : o))
+  }
+
   const submitImageEdit = async () => {
     if (!editImageId || !editInstruction.trim()) return
     setEditingImage(true); setEditImageErr(null)
@@ -367,6 +372,13 @@ export function PostsPage({ workspaceId, userId }: Props) {
                     <div style={{ position: 'absolute', inset: 0, zIndex: 5, background: 'rgba(7,13,31,.7)', backdropFilter: 'blur(2px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
                       <div style={{ width: 28, height: 28, border: '3px solid rgba(255,255,255,.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
                       <span style={{ fontSize: 12, color: 'white', fontWeight: 500 }}>🎨 Editando imagem...</span>
+                    </div>
+                  )}
+                  {!output.regenerating && output.regen_error && (
+                    <div onClick={e => { e.stopPropagation(); dismissRegenError(output.id) }} style={{ position: 'absolute', inset: 0, zIndex: 5, background: 'rgba(7,13,31,.82)', backdropFilter: 'blur(2px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 24, cursor: 'pointer' }}>
+                      <span style={{ fontSize: 26 }}>⚠️</span>
+                      <span style={{ fontSize: 12, color: 'white', fontWeight: 500, textAlign: 'center', lineHeight: 1.5 }}>{output.regen_error}</span>
+                      <span style={{ fontSize: 11, color: 'rgba(255,255,255,.5)', marginTop: 4 }}>Toque para dispensar</span>
                     </div>
                   )}
                   {output.public_url
