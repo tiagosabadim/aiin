@@ -20,7 +20,7 @@ export const handler = async () => {
       .from('scheduled_posts')
       .select(`
         id, workspace_id, output_id, brand_id, scheduled_at,
-        output:creative_outputs(public_url, caption, format),
+        output:creative_outputs(id, public_url, caption, format),
         brand:brand_profiles(instagram_account_id, instagram_access_token)
       `)
       .eq('status', 'scheduled')
@@ -63,45 +63,83 @@ export const handler = async () => {
         const accountId = brand.instagram_account_id
         const token     = brand.instagram_access_token
         const caption   = output.caption ?? ''
-        const imageUrl  = output.public_url
+        const GRAPH     = 'https://graph.facebook.com/v19.0'
 
-        // Passo 1 — Cria container de mídia
-        const containerRes = await fetch(
-          `https://graph.facebook.com/v19.0/${accountId}/media`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+        // Detecta se é carrossel e busca todos os slides
+        const isCarousel = output.format?.startsWith('carrossel')
+        let slideUrls: string[] = [output.public_url]
+
+        if (isCarousel) {
+          const { data: pages } = await supabase
+            .from('carousel_pages')
+            .select('public_url, page_number')
+            .eq('creative_output_id', output.id)
+            .order('page_number')
+          const urls = (pages ?? []).map((p: any) => p.public_url).filter(Boolean)
+          if (urls.length > 1) slideUrls = urls
+          console.log(`Post ${post.id}: carrossel com ${slideUrls.length} slides`)
+        }
+
+        let containerId: string
+
+        if (isCarousel && slideUrls.length > 1) {
+          // ── FLUXO DE CARROSSEL ──
+          // Passo 1: container para cada slide (is_carousel_item)
+          const childIds: string[] = []
+          for (const url of slideUrls) {
+            const childRes = await fetch(`${GRAPH}/${accountId}/media`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                image_url: url.split('?')[0],  // remove cache-bust, Graph exige URL limpa
+                is_carousel_item: true,
+                access_token: token,
+              }),
+            })
+            const childData = await childRes.json()
+            if (childData.error) throw new Error(`Slide error: ${childData.error.message}`)
+            childIds.push(childData.id)
+            await new Promise(r => setTimeout(r, 2000))  // processar cada slide
+          }
+
+          // Passo 2: container pai CAROUSEL
+          const parentRes = await fetch(`${GRAPH}/${accountId}/media`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              image_url: imageUrl,
+              media_type: 'CAROUSEL',
+              children: childIds.join(','),
               caption,
               access_token: token,
             }),
-          }
-        )
-        const containerData = await containerRes.json()
+          })
+          const parentData = await parentRes.json()
+          if (parentData.error) throw new Error(`Carousel error: ${parentData.error.message}`)
+          containerId = parentData.id
+          console.log(`Carrossel container criado: ${containerId} (${childIds.length} slides)`)
 
-        if (containerData.error) {
-          throw new Error(`Container error: ${containerData.error.message}`)
-        }
-
-        const containerId = containerData.id
-        console.log(`Container criado: ${containerId}`)
-
-        // Aguarda 3s para o container processar
-        await new Promise(r => setTimeout(r, 3000))
-
-        // Passo 2 — Publica o container
-        const publishRes = await fetch(
-          `https://graph.facebook.com/v19.0/${accountId}/media_publish`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+        } else {
+          // ── FLUXO DE IMAGEM ÚNICA ──
+          const containerRes = await fetch(`${GRAPH}/${accountId}/media`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              creation_id: containerId,
+              image_url: output.public_url.split('?')[0],
+              caption,
               access_token: token,
             }),
-          }
-        )
+          })
+          const containerData = await containerRes.json()
+          if (containerData.error) throw new Error(`Container error: ${containerData.error.message}`)
+          containerId = containerData.id
+          console.log(`Container criado: ${containerId}`)
+        }
+
+        // Aguarda processar (carrossel precisa de mais tempo)
+        await new Promise(r => setTimeout(r, isCarousel ? 5000 : 3000))
+
+        // Publica o container (mesmo para os dois fluxos)
+        const publishRes = await fetch(`${GRAPH}/${accountId}/media_publish`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ creation_id: containerId, access_token: token }),
+        })
         const publishData = await publishRes.json()
 
         if (publishData.error) {
