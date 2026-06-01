@@ -10,6 +10,28 @@ interface Plan {
 export function LandingPage({ onStart }: { onStart: () => void }) {
   const [plans, setPlans] = useState<Plan[]>([])
   const [openFaq, setOpenFaq] = useState<number | null>(0)
+  const [showcaseCount, setShowcaseCount] = useState(0)
+
+  // Detecta quantas imagens existem em /showcase (post-1.png, post-2.png, ...)
+  useEffect(() => {
+    let cancelled = false
+    const detect = async () => {
+      let count = 0
+      for (let i = 1; i <= 30; i++) {
+        const ok = await new Promise<boolean>(resolve => {
+          const img = new Image()
+          img.onload = () => resolve(true)
+          img.onerror = () => resolve(false)
+          img.src = `/showcase/post-${i}.png`
+        })
+        if (!ok) break
+        count = i
+      }
+      if (!cancelled) setShowcaseCount(count)
+    }
+    detect()
+    return () => { cancelled = true }
+  }, [])
 
   useEffect(() => {
     supabase.from('plans').select('*').eq('active', true).order('display_order')
@@ -112,6 +134,14 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
         .lp-step h3 { font-size:18px; font-weight:700; margin-bottom:8px; }
         .lp-step p { font-size:14px; color:rgba(255,255,255,.55); line-height:1.6; }
 
+        /* SHOWCASE — resultados */
+        .lp-showcase-track { overflow:hidden; position:relative; width:100%; -webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent); mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent); }
+        .lp-showcase-row { display:flex; gap:18px; width:max-content; animation:lp-scroll 40s linear infinite; }
+        .lp-showcase-track:hover .lp-showcase-row { animation-play-state:paused; }
+        .lp-showcase-item { width:240px; aspect-ratio:4/5; flex-shrink:0; border-radius:18px; overflow:hidden; border:1px solid rgba(255,255,255,.1); box-shadow:0 16px 48px rgba(0,0,0,.4); background:linear-gradient(160deg,#1a1130,#0d0a1a); }
+        .lp-showcase-item img { width:100%; height:100%; object-fit:cover; display:block; }
+        @keyframes lp-scroll { from { transform:translateX(0); } to { transform:translateX(-50%); } }
+
         /* PROVA SOCIAL */
         .lp-testi { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
         .lp-testi-card { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:18px; padding:28px 26px; }
@@ -181,6 +211,8 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
 
           /* Grids empilham */
           .lp-features, .lp-steps, .lp-testi { grid-template-columns:1fr; gap:14px; }
+          .lp-showcase-item { width:170px; }
+          .lp-showcase-row { gap:12px; }
           .lp-feat { padding:26px 22px; }
           .lp-fit { grid-template-columns:1fr; gap:16px; }
           .lp-fit-card { padding:28px 24px; }
@@ -361,6 +393,35 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
               ))}
             </div>
           </section>
+
+          {/* RESULTADOS / SHOWCASE */}
+          {showcaseCount > 0 && (
+            <section className="lp-section">
+              <div className="lp-section-eyebrow">Resultados reais</div>
+              <h2>Posts criados com a aiin</h2>
+              <p className="lp-section-sub">Veja o tipo de conteúdo profissional que sua marca pode ter — tudo gerado por inteligência artificial.</p>
+
+              <div className="lp-showcase-track">
+                <div className="lp-showcase-row">
+                  {/* duplica a lista para o loop infinito ficar contínuo */}
+                  {[...Array(showcaseCount), ...Array(showcaseCount)].map((_, i) => {
+                    const n = (i % showcaseCount) + 1
+                    return (
+                      <div key={i} className="lp-showcase-item">
+                        <img src={`/showcase/post-${n}.png`} alt={`Post criado com aiin ${n}`} loading="lazy" />
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div style={{ textAlign:'center', marginTop:44 }}>
+                <button className="lp-btn lp-btn-grad" onClick={onStart} style={{ padding:'16px 36px', fontSize:16 }}>
+                  ✦ Eu quero esse resultado
+                </button>
+              </div>
+            </section>
+          )}
 
           {/* PLANOS */}
           <section className="lp-section" id="planos">
