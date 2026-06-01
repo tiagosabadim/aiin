@@ -68,6 +68,23 @@ function PostModal({ output, slides, onClose, onApprove, onReject }: ModalProps)
   const prev = () => setIdx(i => Math.max(0, i - 1))
   const next = () => setIdx(i => Math.min(images.length - 1, i + 1))
 
+  const downloadImage = async (url: string, name: string) => {
+    try {
+      const res = await fetch(url)
+      const blob = await res.blob()
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = name
+      document.body.appendChild(link); link.click(); link.remove()
+      URL.revokeObjectURL(link.href)
+    } catch { window.open(url, '_blank') }
+  }
+  const downloadAll = async () => {
+    for (let i = 0; i < images.length; i++) {
+      if (images[i]) { await downloadImage(images[i]!, `aiin_slide_${i+1}.png`); await new Promise(r => setTimeout(r, 400)) }
+    }
+  }
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
@@ -119,12 +136,23 @@ function PostModal({ output, slides, onClose, onApprove, onReject }: ModalProps)
         )}
 
         {/* Actions */}
-        <div style={{ padding: '12px 16px', display: 'flex', gap: 8 }}>
+        <div style={{ padding: '12px 16px', display: 'flex', gap: 8, alignItems: 'center' }}>
           {output.status === 'pending' && (
             <button className="btn btn-success btn-md" style={{ flex: 1 }} onClick={() => { onApprove(); onClose() }}>✓ Aprovar post</button>
           )}
           {output.status !== 'rejected' && output.status !== 'published' && (
             <button className="btn btn-danger btn-md" onClick={() => { onReject(); onClose() }}>✕ Recusar</button>
+          )}
+          {/* Download */}
+          {current && (
+            <button
+              className="btn btn-md"
+              style={{ border: '1px solid rgba(7,13,31,.12)', background: 'transparent', color: '#374151' }}
+              title={images.length > 1 ? 'Baixar todos os slides' : 'Baixar imagem'}
+              onClick={() => images.length > 1 ? downloadAll() : downloadImage(current!, 'aiin_post.png')}
+            >
+              ⬇ {images.length > 1 ? `Baixar ${images.length}` : 'Baixar'}
+            </button>
           )}
           <button className="btn-icon lg" onClick={onClose} style={{ marginLeft: 'auto' }}>×</button>
         </div>
@@ -199,8 +227,19 @@ export function PostsPage({ workspaceId, userId }: Props) {
     return () => clearInterval(t)
   }, [anyRegenerating, fetchOutputs])
 
-  const fetchSlides = async (outputId: string) => {
-    if (slides[outputId]) return
+  // Quando uma regeneração de carrossel termina, recarrega os slides (força)
+  const regenSignature = outputs.map(o => `${o.id}:${o.edit_count}`).join(',')
+  useEffect(() => {
+    outputs.forEach(o => {
+      if (!o.regenerating && o.format?.startsWith('carrossel') && slides[o.id]) {
+        fetchSlides(o.id, true)
+      }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [regenSignature])
+
+  const fetchSlides = async (outputId: string, force = false) => {
+    if (slides[outputId] && !force) return
     const { data } = await supabase.from('carousel_pages').select('*')
       .eq('creative_output_id', outputId).order('page_number')
     if (data?.length) setSlides(prev => ({ ...prev, [outputId]: data }))
@@ -496,6 +535,9 @@ export function PostsPage({ workspaceId, userId }: Props) {
       {editImageId && (() => {
         const target = outputs.find(o => o.id === editImageId)
         const isFirstFree = (target?.edit_count ?? 0) < 1
+        const fmtCost: Record<string, number> = { post_simples:1, post_premium:2, capa_reels:1, story:1, story_sequencia:2, carrossel_5:3, carrossel_7:4 }
+        const regenCost = fmtCost[target?.format ?? 'post_simples'] ?? 1
+        const isCarousel = target?.format?.startsWith('carrossel')
         return (
           <div onClick={() => !editingImage && setEditImageId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(7,13,31,.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
             <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 20, padding: 28, width: '100%', maxWidth: 480, boxShadow: '0 24px 80px rgba(0,0,0,.3)' }}>
@@ -517,9 +559,14 @@ export function PostsPage({ workspaceId, userId }: Props) {
                 style={{ width: '100%', minHeight: 90, padding: '12px 14px', border: '1.5px solid rgba(7,13,31,.12)', borderRadius: 12, fontSize: 13, fontFamily: 'inherit', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }}
               />
 
+              {isCarousel && (
+                <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(123,44,255,.06)', border: '1px solid rgba(123,44,255,.15)', borderRadius: 8, fontSize: 12, color: '#5B21B6' }}>
+                  ℹ Refazer regenera <strong>todos os {(target?.format === 'carrossel_7' ? 7 : 5)} slides</strong> do carrossel.
+                </div>
+              )}
               {!isFirstFree && (
                 <div style={{ marginTop: 10, padding: '8px 12px', background: '#FAEEDA', border: '1px solid rgba(186,117,23,.2)', borderRadius: 8, fontSize: 12, color: '#633806' }}>
-                  Esta edição vai custar <strong>1 crédito</strong>.
+                  Vai custar <strong>{regenCost} crédito{regenCost > 1 ? 's' : ''}</strong> (valor do {isCarousel ? 'carrossel' : 'post'}).
                 </div>
               )}
 
