@@ -152,23 +152,66 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
         /* FOOTER */
         .lp-footer { border-top:1px solid rgba(255,255,255,.06); padding:40px 0; text-align:center; color:rgba(255,255,255,.4); font-size:13px; }
 
-        /* MOBILE FIRST */
+        /* ===== MOBILE FIRST ===== */
         @media (max-width:768px) {
+          .lp-wrap { padding:0 18px; }
           .lp-nav-links { display:none; }
-          .lp-hero { padding:56px 0 48px; }
-          .lp-hero h1 { font-size:38px; letter-spacing:-1px; }
-          .lp-hero p { font-size:16px; }
-          .lp-mockup-grid { grid-template-columns:1fr 1fr; gap:12px; max-width:340px; }
+          .lp-nav-in { padding:12px 18px; }
+
+          /* Hero */
+          .lp-hero { padding:44px 0 40px; }
+          .lp-eyebrow { font-size:12px; padding:6px 13px; margin-bottom:20px; }
+          .lp-hero h1 { font-size:33px; letter-spacing:-1px; margin-bottom:18px; }
+          .lp-hero p { font-size:15.5px; margin-bottom:28px; }
+          .lp-hero-cta { flex-direction:column; gap:12px; }
+          .lp-hero-cta .lp-btn { width:100%; padding:15px 24px !important; font-size:15px !important; }
+          .lp-social-proof { font-size:12px; }
+
+          /* Mockup */
+          .lp-mockup { margin-top:44px; }
+          .lp-mockup-grid { grid-template-columns:1fr 1fr; gap:12px; max-width:330px; }
           .lp-mockup-card:nth-child(3) { display:none; }
           .lp-mockup-card:nth-child(2) { transform:none; }
-          .lp-section { padding:56px 0; }
-          .lp-section h2 { font-size:28px; }
-          .lp-section-sub { font-size:15px; margin-bottom:40px; }
-          .lp-features, .lp-steps, .lp-testi { grid-template-columns:1fr; gap:16px; }
-          .lp-fit { grid-template-columns:1fr; }
-          .lp-plans { grid-template-columns:1fr; gap:32px; }
+
+          /* Seções */
+          .lp-section { padding:48px 0; }
+          .lp-section-eyebrow { font-size:12px; }
+          .lp-section h2 { font-size:26px; letter-spacing:-.5px; }
+          .lp-section-sub { font-size:14.5px; margin-bottom:36px; }
+
+          /* Grids empilham */
+          .lp-features, .lp-steps, .lp-testi { grid-template-columns:1fr; gap:14px; }
+          .lp-feat { padding:26px 22px; }
+          .lp-fit { grid-template-columns:1fr; gap:16px; }
+          .lp-fit-card { padding:28px 24px; }
+          .lp-fit-card h3 { font-size:19px; }
+
+          /* Planos */
+          .lp-plans { grid-template-columns:1fr; gap:30px; }
+          .lp-plan { padding:32px 26px; }
           .lp-plan.hl { transform:none; order:-1; }
-          .lp-final h2 { font-size:30px; }
+          .lp-plan-price { font-size:40px; }
+          .lp-plan-btn { height:52px; }
+
+          /* FAQ — touch targets maiores */
+          .lp-faq-q { padding:18px 20px; font-size:15px; }
+          .lp-faq-a { padding:0 20px 18px; font-size:14px; }
+
+          /* CTA final */
+          .lp-final { padding:60px 24px; margin:24px 0; }
+          .lp-final h2 { font-size:27px; }
+          .lp-final p { font-size:16px; }
+          .lp-final .lp-btn { width:100%; padding:16px 24px !important; }
+
+          /* Step number menor */
+          .lp-step-num { width:48px; height:48px; font-size:20px; }
+        }
+
+        /* Telas bem pequenas */
+        @media (max-width:380px) {
+          .lp-hero h1 { font-size:29px; }
+          .lp-mockup-grid { max-width:280px; }
+          .lp-plan-price { font-size:36px; }
         }
       `}</style>
 
