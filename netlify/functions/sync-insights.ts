@@ -85,9 +85,9 @@ async function syncBrandInsights(brand: any) {
   for (const output of outputs) {
     try {
       // Busca insights do post via Graph API
-      const fields = 'impressions,reach,likes,comments_count,saved,shares'
+      const fields = 'reach,views,saved,shares,total_interactions'  // impressions descontinuada na v22
       const res = await fetch(
-        `https://graph.facebook.com/v19.0/${output.instagram_post_id}/insights?metric=${fields}&access_token=${token}`
+        `https://graph.facebook.com/v22.0/${output.instagram_post_id}/insights?metric=${fields}&access_token=${token}`
       )
       const data = await res.json()
 
@@ -104,7 +104,7 @@ async function syncBrandInsights(brand: any) {
 
       // Busca likes separadamente (endpoint diferente)
       const likeRes = await fetch(
-        `https://graph.facebook.com/v19.0/${output.instagram_post_id}?fields=like_count,comments_count&access_token=${token}`
+        `https://graph.facebook.com/v22.0/${output.instagram_post_id}?fields=like_count,comments_count&access_token=${token}`
       )
       const likeData = await likeRes.json()
 
@@ -113,7 +113,7 @@ async function syncBrandInsights(brand: any) {
       const comments = likeData.comments_count ?? 0
       const saved = metrics.saved ?? 0
       const shares = metrics.shares ?? 0
-      const impressions = metrics.impressions ?? 0
+      const impressions = metrics.views ?? 0  // views substituiu impressions
       const engagementRate = reach > 0 ? ((likes + comments + saved + shares) / reach) * 100 : 0
 
       insights.push({

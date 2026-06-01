@@ -31,12 +31,34 @@ export function DashboardPage({ workspace, brand, subscription, credits, navigat
   const [period, setPeriod]         = useState<'7'|'30'|'90'>('30')
   const [insights, setInsights]     = useState<PostInsight[]>([])
   const [analysis, setAnalysis]     = useState<any>(null)
+  const [analyzing, setAnalyzing]   = useState(false)
   const [metrics, setMetrics]       = useState<BrandMetric | null>(null)
   const [learnings, setLearnings]   = useState<Learning[]>([])
   const [outputStats, setOutputStats] = useState({ total: 0, published: 0, scheduled: 0, rejected: 0, pending: 0 })
   const [loading, setLoading]       = useState(true)
 
   useEffect(() => { fetchAll() }, [period])
+
+  const runAnalysis = async () => {
+    setAnalyzing(true)
+    try {
+      await fetch('/api/analyze-profile-background', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspace_id: workspace.id, brand_id: brand.id }),
+      })
+      // Faz polling por até 90s aguardando a análise aparecer
+      let tries = 0
+      const poll = setInterval(async () => {
+        tries++
+        const { data } = await supabase.from('profile_analysis')
+          .select('*').eq('workspace_id', workspace.id)
+          .order('created_at', { ascending: false }).limit(1).maybeSingle()
+        if (data && (!analysis || data.id !== analysis.id)) {
+          setAnalysis(data); setAnalyzing(false); clearInterval(poll)
+        } else if (tries >= 30) { setAnalyzing(false); clearInterval(poll) }
+      }, 3000)
+    } catch { setAnalyzing(false) }
+  }
 
   const fetchAll = async () => {
     setLoading(true)
@@ -159,6 +181,19 @@ export function DashboardPage({ workspace, brand, subscription, credits, navigat
         </div>
       </div>
 
+      {/* Botão analisar (quando Instagram conectado e sem análise ainda) */}
+      {brand.instagram_access_token && !analysis && (
+        <div style={{ background: 'linear-gradient(135deg,#070D1F,#1a1130)', borderRadius: 16, padding: '20px 24px', marginBottom: 16, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>📊 Analisar meu perfil do Instagram</div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,.6)' }}>A IA avalia seu perfil e gera recomendações de melhoria.</div>
+          </div>
+          <button className="btn btn-primary btn-md" onClick={runAnalysis} disabled={analyzing} style={{ opacity: analyzing ? .6 : 1, whiteSpace: 'nowrap' }}>
+            {analyzing ? 'Analisando...' : '✦ Analisar agora'}
+          </button>
+        </div>
+      )}
+
       {/* Card de análise de perfil */}
       {analysis && (
         <div style={{ background: 'linear-gradient(135deg,#070D1F,#1a1130)', borderRadius: 18, padding: '24px 26px', marginBottom: 16, color: '#fff', position: 'relative', overflow: 'hidden' }}>
@@ -182,7 +217,10 @@ export function DashboardPage({ workspace, brand, subscription, credits, navigat
             </div>
             {/* Resumo + melhorias */}
             <div style={{ flex: 1, minWidth: 260 }}>
-              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>📊 Análise do seu Instagram</div>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: 6 }}>
+                <div style={{ fontSize: 15, fontWeight: 700 }}>📊 Análise do seu Instagram</div>
+                <button onClick={runAnalysis} disabled={analyzing} style={{ background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.2)', borderRadius:8, color:'#fff', fontSize:11, padding:'5px 12px', cursor:'pointer', fontFamily:'inherit', opacity: analyzing ? .6 : 1 }}>{analyzing ? 'Analisando...' : '↻ Reanalisar'}</button>
+              </div>
               <p style={{ fontSize: 13, color: 'rgba(255,255,255,.7)', lineHeight: 1.5, marginBottom: 14 }}>{analysis.summary}</p>
               {(analysis.improvements ?? []).slice(0, 3).map((imp: any, i: number) => (
                 <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-start' }}>

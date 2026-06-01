@@ -5,7 +5,7 @@ import { trackUsage } from './usage-tracker'
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY!
 const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-const GRAPH = 'https://graph.facebook.com/v19.0'
+const GRAPH = 'https://graph.facebook.com/v22.0'
 
 export const handler = async (event: any) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method not allowed' }
@@ -40,20 +40,22 @@ export const handler = async (event: any) => {
     const mediaData = await mediaRes.json()
     const posts = mediaData.data ?? []
 
-    // 3. Métricas agregadas da conta (alcance, visitas)
-    let reach = 0, impressions = 0, profileViews = 0
+    // 3. Métricas agregadas da conta (métricas válidas na v22+: reach, views)
+    // 'impressions' e 'profile_views' foram descontinuadas — usar 'reach' e 'views'
+    let reach = 0, views = 0
     try {
       const insightsRes = await fetch(
-        `${GRAPH}/${accountId}/insights?metric=reach,impressions,profile_views&period=days_28&access_token=${token}`
+        `${GRAPH}/${accountId}/insights?metric=reach,views&period=days_28&metric_type=total_value&access_token=${token}`
       )
       const insightsData = await insightsRes.json()
       for (const m of insightsData.data ?? []) {
-        const val = m.values?.[0]?.value ?? 0
+        const val = m.total_value?.value ?? m.values?.[0]?.value ?? 0
         if (m.name === 'reach') reach = val
-        if (m.name === 'impressions') impressions = val
-        if (m.name === 'profile_views') profileViews = val
+        if (m.name === 'views') views = val
       }
     } catch { /* insights podem não estar disponíveis em contas novas */ }
+    const impressions = views  // mantém compat com o resto do código (views substituiu impressions)
+    const profileViews = 0
 
     // 4. Calcula engajamento médio dos posts
     const totalEng = posts.reduce((s: number, p: any) => s + (p.like_count ?? 0) + (p.comments_count ?? 0), 0)
