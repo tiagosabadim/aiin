@@ -34,7 +34,7 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
   return (
     <>
       <style>{`
-        .lp-root { background:#08060F; color:#fff; min-height:100vh; overflow-x:hidden; }
+        .lp-root { background:#08060F; color:#fff; height:100vh; overflow-y:auto; overflow-x:hidden; }
         .lp-container { max-width:1100px; margin:0 auto; padding:0 24px; }
         .lp-nav { display:flex; align-items:center; justify-content:space-between; padding:20px 24px; max-width:1100px; margin:0 auto; }
         .lp-hero { text-align:center; padding:60px 0 40px; position:relative; }
@@ -78,8 +78,8 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
       <div className="lp-root">
 
         {/* Glows */}
-        <div style={{ position:'fixed', top:'-10%', right:'-5%', width:500, height:500, background:'radial-gradient(circle, rgba(123,44,255,.18) 0%, transparent 70%)', pointerEvents:'none', zIndex:0 }} />
-        <div style={{ position:'fixed', bottom:'-10%', left:'-5%', width:500, height:500, background:'radial-gradient(circle, rgba(247,37,133,.12) 0%, transparent 70%)', pointerEvents:'none', zIndex:0 }} />
+        <div style={{ position:'absolute', top:'-10%', right:'-5%', width:500, height:500, background:'radial-gradient(circle, rgba(123,44,255,.18) 0%, transparent 70%)', pointerEvents:'none', zIndex:0 }} />
+        <div style={{ position:'absolute', bottom:'-10%', left:'-5%', width:500, height:500, background:'radial-gradient(circle, rgba(247,37,133,.12) 0%, transparent 70%)', pointerEvents:'none', zIndex:0 }} />
 
         <div style={{ position:'relative', zIndex:1 }}>
 
