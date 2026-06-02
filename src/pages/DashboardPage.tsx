@@ -32,6 +32,7 @@ export function DashboardPage({ workspace, brand, subscription, credits, navigat
   const [insights, setInsights]     = useState<PostInsight[]>([])
   const [analysis, setAnalysis]     = useState<any>(null)
   const [analyzing, setAnalyzing]   = useState(false)
+  const [syncing, setSyncing]       = useState(false)
   const [metrics, setMetrics]       = useState<BrandMetric | null>(null)
   const [learnings, setLearnings]   = useState<Learning[]>([])
   const [outputStats, setOutputStats] = useState({ total: 0, published: 0, scheduled: 0, rejected: 0, pending: 0 })
@@ -58,6 +59,17 @@ export function DashboardPage({ workspace, brand, subscription, credits, navigat
         } else if (tries >= 30) { setAnalyzing(false); clearInterval(poll) }
       }, 3000)
     } catch { setAnalyzing(false) }
+  }
+
+  const syncInsights = async () => {
+    setSyncing(true)
+    try {
+      await fetch('/api/sync-insights', { method: 'POST' })
+      // Aguarda o sync processar e recarrega os dados
+      await new Promise(r => setTimeout(r, 6000))
+      await fetchAll()
+    } catch { /* silencioso */ }
+    finally { setSyncing(false) }
   }
 
   const fetchAll = async () => {
@@ -265,7 +277,14 @@ export function DashboardPage({ workspace, brand, subscription, credits, navigat
         {/* Gráfico de performance */}
         <div style={{ background: '#fff', border: '1px solid rgba(7,13,31,.08)', borderRadius: 14, padding: '18px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#070D1F' }}>Performance dos posts</div>
+            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#070D1F' }}>Performance dos posts</div>
+              {brand.instagram_access_token && (
+                <button onClick={syncInsights} disabled={syncing} style={{ background:'rgba(123,44,255,.08)', border:'1px solid rgba(123,44,255,.2)', borderRadius:8, color:'#7B2CFF', fontSize:11, fontWeight:600, padding:'5px 12px', cursor:'pointer', fontFamily:'inherit', opacity: syncing ? .6 : 1, whiteSpace:'nowrap' }}>
+                  {syncing ? 'Sincronizando...' : '↻ Sincronizar'}
+                </button>
+              )}
+            </div>
             <div style={{ display: 'flex', gap: 4 }}>
               {(['7','30','90'] as const).map(p => (
                 <button key={p} onClick={() => setPeriod(p)} style={{ height: 28, padding: '0 10px', border: `1px solid ${period===p?'#7B2CFF':'rgba(7,13,31,.1)'}`, borderRadius: 99, background: period===p?'#7B2CFF':'transparent', color: period===p?'white':'#9CA3AF', fontSize: 11, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>{p}d</button>
