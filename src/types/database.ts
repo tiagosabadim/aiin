@@ -207,6 +207,7 @@ export interface CreativeOutput {
   edit_count: number
   regenerating: boolean
   regen_error: string | null
+  instagram_deleted: boolean
   created_at: string
   updated_at: string
 }

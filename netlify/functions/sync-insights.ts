@@ -69,6 +69,7 @@ async function syncBrandInsights(brand: any) {
     .eq('workspace_id', workspace_id)
     .eq('status', 'published')
     .not('instagram_post_id', 'is', null)
+    .or('instagram_deleted.is.null,instagram_deleted.eq.false')
     .gte('published_at', ninetyDaysAgo.toISOString())
     .order('published_at', { ascending: false })
     .limit(50)
@@ -90,9 +91,16 @@ async function syncBrandInsights(brand: any) {
       )
       const fieldsData = await fieldsRes.json()
 
-      // Se o post não existe (deletado/ID antigo), pula sem quebrar
+      // Se o post não existe (deletado pelo usuário ou ID antigo), marca como deletado e para de tentar
       if (fieldsData.error) {
-        console.log(`Post ${output.instagram_post_id}: ${fieldsData.error.message} — pulando`)
+        const msg = (fieldsData.error.message ?? '').toLowerCase()
+        const notFound = msg.includes('does not exist') || fieldsData.error.code === 100
+        if (notFound) {
+          await supabase.from('creative_outputs').update({ instagram_deleted: true }).eq('id', output.id)
+          console.log(`Post ${output.instagram_post_id}: deletado do Instagram — marcado, não será mais sincronizado`)
+        } else {
+          console.log(`Post ${output.instagram_post_id}: ${fieldsData.error.message} — pulando`)
+        }
         continue
       }
 

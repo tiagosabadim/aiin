@@ -430,7 +430,10 @@ export function PostsPage({ workspaceId, userId }: Props) {
                     )
                   }
                   <div className="post-card-badges">
-                    <span className={`badge ${cfg.cls}`} style={{ background: 'rgba(0,0,0,.5)', color: 'white', backdropFilter: 'blur(4px)' }}>{cfg.label}</span>
+                    {output.instagram_deleted
+                      ? <span className="badge" style={{ background: 'rgba(107,114,128,.85)', color: 'white', backdropFilter: 'blur(4px)' }}>🗑 Removido do Instagram</span>
+                      : <span className={`badge ${cfg.cls}`} style={{ background: 'rgba(0,0,0,.5)', color: 'white', backdropFilter: 'blur(4px)' }}>{cfg.label}</span>
+                    }
                     {output.ai_score && <span className="badge badge-brand">✦ {Number(output.ai_score).toFixed(1)}</span>}
                   </div>
                   <div className="post-card-format">
