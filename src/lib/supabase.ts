@@ -20,6 +20,25 @@ export const supabase = createClient(supabaseUrl, supabaseAnon, {
   },
 })
 
+// ---- Admin auth (isolada — nao afeta a sessao do usuario) ----
+
+/**
+ * Valida credenciais de admin sem mexer na sessao de usuario atual.
+ * Usa um cliente Supabase isolado com persistSession:false.
+ * Retorna o email se as credenciais forem validas, ou null.
+ */
+export async function validateAdminLogin(email: string, password: string): Promise<string | null> {
+  const isolated = createClient(supabaseUrl, supabaseAnon, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  })
+  const { data, error } = await isolated.auth.signInWithPassword({ email, password })
+  if (error || !data.user) return null
+  const validatedEmail = data.user.email ?? null
+  // Encerra a sessao isolada imediatamente — nao deixa rastro
+  await isolated.auth.signOut()
+  return validatedEmail
+}
+
 // ---- Storage helpers ----
 
 /** Faz upload de uma imagem do acervo e retorna a URL pública */

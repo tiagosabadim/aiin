@@ -4,8 +4,7 @@
 //  Acesso via: /#admin
 // ============================================================
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
-import { useAuth } from '../hooks/useAuth'
+import { supabase, validateAdminLogin } from '../lib/supabase'
 
 // ⚠️ Adicione aqui os emails com acesso admin
 const ADMIN_EMAILS = ['aiin.riopreto@gmail.com']
@@ -77,7 +76,12 @@ const statusColor: Record<string, string> = {
 //  AdminPage
 // ============================================================
 export function AdminPage() {
-  const { user } = useAuth()
+  // Login de admin proprio — independente da sessao de usuario
+  const [adminEmail, setAdminEmail] = useState<string | null>(() => sessionStorage.getItem('aiin_admin_email'))
+  const [loginEmail, setLoginEmail] = useState('')
+  const [loginPass, setLoginPass] = useState('')
+  const [loginErr, setLoginErr] = useState<string | null>(null)
+  const [loggingIn, setLoggingIn] = useState(false)
   const [tab, setTab] = useState<Tab>('metrics')
   const [costsByOp, setCostsByOp] = useState<CostRow[]>([])
   const [costsByWs, setCostsByWs] = useState<CostByWorkspace[]>([])
@@ -139,7 +143,7 @@ export function AdminPage() {
   const [jobFilter, setJobFilter] = useState<string>('all')
   const [search, setSearch] = useState('')
 
-  const isAdmin = user && ADMIN_EMAILS.includes(user.email ?? '')
+  const isAdmin = !!adminEmail && ADMIN_EMAILS.includes(adminEmail)
 
   const showToast = (msg: string) => {
     setToast(msg)
@@ -271,13 +275,66 @@ export function AdminPage() {
   }
 
   // ---- Guards ----
-  if (!user) return <AdminCenter><p style={{ color: 'var(--text-3)' }}>Faça login primeiro.</p></AdminCenter>
+  const doAdminLogin = async () => {
+    if (!loginEmail || !loginPass) return
+    setLoggingIn(true); setLoginErr(null)
+    try {
+      // 1) Email precisa estar na lista de admins
+      if (!ADMIN_EMAILS.includes(loginEmail.trim().toLowerCase())) {
+        setLoginErr('Este email nao tem acesso administrativo.')
+        setLoggingIn(false); return
+      }
+      // 2) Valida a senha sem tocar na sessao de usuario
+      const validated = await validateAdminLogin(loginEmail.trim().toLowerCase(), loginPass)
+      if (!validated) {
+        setLoginErr('Email ou senha incorretos.')
+        setLoggingIn(false); return
+      }
+      sessionStorage.setItem('aiin_admin_email', validated)
+      setAdminEmail(validated)
+      setLoginPass('')
+    } catch {
+      setLoginErr('Erro ao validar. Tente novamente.')
+    } finally {
+      setLoggingIn(false)
+    }
+  }
+
+  const adminLogout = () => {
+    sessionStorage.removeItem('aiin_admin_email')
+    setAdminEmail(null)
+    setLoginEmail(''); setLoginPass('')
+  }
+
+  // Tela de LOGIN DE ADMIN — sempre aparece ao acessar /#admin sem sessao admin validada
   if (!isAdmin) return (
-    <AdminCenter>
-      <div style={{ fontSize: 40, marginBottom: 12 }}>🔒</div>
-      <p style={{ color: 'var(--text-3)', fontSize: 14 }}>Acesso restrito. Seu email não tem permissão admin.</p>
-      <p style={{ color: 'var(--text-4)', fontSize: 12 }}>{user.email}</p>
-    </AdminCenter>
+    <div style={{ minHeight: '100vh', background: '#0a0a14', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ width: '100%', maxWidth: 380, background: '#15151f', border: '1px solid #2d2d3d', borderRadius: 18, padding: 36 }}>
+        <div style={{ textAlign: 'center', marginBottom: 26 }}>
+          <div style={{ fontSize: 34, marginBottom: 10 }}>🔐</div>
+          <h1 style={{ fontSize: 19, fontWeight: 700, color: '#f1f5f9', marginBottom: 4 }}>Painel Administrativo</h1>
+          <p style={{ fontSize: 13, color: '#64748b' }}>Acesso restrito. Entre com suas credenciais de admin.</p>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && doAdminLogin()}
+            placeholder="email de admin" autoComplete="off"
+            style={{ height: 46, padding: '0 14px', background: '#0a0a14', border: '1px solid #2d2d3d', borderRadius: 10, color: '#f1f5f9', fontSize: 14, fontFamily: 'inherit', outline: 'none' }} />
+          <input type="password" value={loginPass} onChange={e => setLoginPass(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && doAdminLogin()}
+            placeholder="senha" autoComplete="off"
+            style={{ height: 46, padding: '0 14px', background: '#0a0a14', border: '1px solid #2d2d3d', borderRadius: 10, color: '#f1f5f9', fontSize: 14, fontFamily: 'inherit', outline: 'none' }} />
+          {loginErr && <div style={{ fontSize: 12, color: '#f87171', padding: '4px 2px' }}>{loginErr}</div>}
+          <button onClick={doAdminLogin} disabled={loggingIn || !loginEmail || !loginPass}
+            style={{ height: 46, background: loggingIn ? '#3d3d52' : 'linear-gradient(135deg,#7B2CFF,#F72585)', border: 'none', borderRadius: 10, color: '#fff', fontSize: 15, fontWeight: 600, cursor: loggingIn ? 'default' : 'pointer', fontFamily: 'inherit', marginTop: 4 }}>
+            {loggingIn ? 'Validando...' : 'Entrar no painel'}
+          </button>
+        </div>
+        <p style={{ fontSize: 11, color: '#475569', textAlign: 'center', marginTop: 18 }}>
+          Esta area e separada da sua conta de usuario.
+        </p>
+      </div>
+    </div>
   )
 
   const filteredJobs = jobs.filter(j => {
@@ -315,6 +372,10 @@ export function AdminPage() {
           />
           <button onClick={loadAll} style={{ background: '#1e1e2e', border: '1px solid #2d2d3d', borderRadius: 8, padding: '7px 12px', fontSize: 12, color: '#94a3b8', cursor: 'pointer' }}>
             ↻ Atualizar
+          </button>
+          <span style={{ fontSize: 11, color: '#475569', marginLeft: 4 }}>{adminEmail}</span>
+          <button onClick={adminLogout} style={{ background: '#1e1e2e', border: '1px solid #3d2d2d', borderRadius: 8, padding: '7px 12px', fontSize: 12, color: '#f87171', cursor: 'pointer' }}>
+            Sair
           </button>
         </div>
       </div>

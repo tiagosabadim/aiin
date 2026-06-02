@@ -32,6 +32,11 @@ export default function App() {
   const navigate = (to: Route) => { setRoute(to); window.location.hash = to }
 
   if (authLoading || wsLoading) return <SplashScreen />
+
+  // Painel admin: area separada com login proprio. Acessivel via #admin
+  // independente de estar logado como usuario ou nao.
+  if (window.location.hash === '#admin' || route === ('admin' as any)) return <AdminPage />
+
   if (!user) {
     // #login no hash ou clicou em entrar → login; senão landing
     const wantsLogin = showLogin || window.location.hash === '#login'
@@ -55,8 +60,6 @@ export default function App() {
 
   // Validação visual obrigatória após onboarding
   // visual_context_approved gerenciado dentro do OnboardingPage (step 6)
-
-  if (route === ("admin" as any)) return <AdminPage />
 
   const openOnboardingAt = (step: number) => setOnboardingStep(step)
   const ctx = { workspace, brand, subscription, credits, navigate, openOnboardingAt }
