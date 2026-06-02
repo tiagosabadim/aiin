@@ -2,6 +2,8 @@
 //  aiin · Netlify Scheduled Function
 //  Publica posts agendados no Instagram via Meta Graph API
 //  Roda a cada 5 minutos via cron
+//  Robusto: verifica status real do container antes de publicar,
+//  com retry e tratamento de erro por etapa.
 // ============================================================
 
 import { createClient } from '@supabase/supabase-js'
@@ -11,11 +13,55 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 )
 
+const GRAPH = 'https://graph.facebook.com/v22.0'
+
+// Limpa a URL (remove cache-bust ?v=) — Graph rejeita query strings
+const cleanUrl = (u: string) => u.split('?')[0]
+
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
+
+// Cria um container de mídia, com retry em caso de falha transitória
+async function createContainer(accountId: string, token: string, body: Record<string, any>): Promise<string> {
+  let lastErr = ''
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const res = await fetch(`${GRAPH}/${accountId}/media`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...body, access_token: token }),
+    })
+    const data = await res.json()
+    if (!data.error && data.id) return data.id
+    lastErr = data.error?.message ?? 'erro desconhecido'
+    // Erros transitórios (rate limit, indisponível) → espera e tenta de novo
+    const code = data.error?.code
+    if (code === 4 || code === 2 || code === 1) { await sleep(3000 * attempt); continue }
+    // Erro permanente → para já
+    throw new Error(lastErr)
+  }
+  throw new Error(`Falha após 3 tentativas: ${lastErr}`)
+}
+
+// Verifica o status de processamento de um container (FINISHED, IN_PROGRESS, ERROR)
+async function waitContainerReady(containerId: string, token: string, maxWaitMs = 60000): Promise<void> {
+  const start = Date.now()
+  while (Date.now() - start < maxWaitMs) {
+    const res = await fetch(`${GRAPH}/${containerId}?fields=status_code,status&access_token=${token}`)
+    const data = await res.json()
+    const status = data.status_code
+    if (status === 'FINISHED') return
+    if (status === 'ERROR' || status === 'EXPIRED') {
+      throw new Error(`Container falhou: ${data.status ?? status}`)
+    }
+    // IN_PROGRESS → espera e checa de novo
+    await sleep(3000)
+  }
+  throw new Error('Timeout aguardando processamento do container')
+}
+
 export const handler = async () => {
   try {
     const now = new Date().toISOString()
 
-    // Busca posts agendados que já passaram do horário
     const { data: posts } = await supabase
       .from('scheduled_posts')
       .select(`
@@ -40,35 +86,27 @@ export const handler = async () => {
         const output = post.output
 
         if (!brand?.instagram_account_id || !brand?.instagram_access_token) {
-          console.log(`Post ${post.id}: sem credenciais do Instagram`)
           await supabase.from('scheduled_posts').update({
-            status: 'failed',
-            error_message: 'Token ou Account ID do Instagram não configurado',
+            status: 'failed', error_message: 'Token ou Account ID do Instagram não configurado',
           }).eq('id', post.id)
           continue
         }
-
         if (!output?.public_url) {
-          console.log(`Post ${post.id}: sem imagem`)
           await supabase.from('scheduled_posts').update({
-            status: 'failed',
-            error_message: 'Imagem não disponível',
+            status: 'failed', error_message: 'Imagem não disponível',
           }).eq('id', post.id)
           continue
         }
 
-        // Marca como publicando
         await supabase.from('scheduled_posts').update({ status: 'publishing' }).eq('id', post.id)
 
         const accountId = brand.instagram_account_id
         const token     = brand.instagram_access_token
         const caption   = output.caption ?? ''
-        const GRAPH     = 'https://graph.facebook.com/v19.0'
-
-        // Detecta se é carrossel e busca todos os slides
         const isCarousel = output.format?.startsWith('carrossel')
-        let slideUrls: string[] = [output.public_url]
 
+        // Monta a lista de URLs dos slides
+        let slideUrls: string[] = [output.public_url]
         if (isCarousel) {
           const { data: pages } = await supabase
             .from('carousel_pages')
@@ -83,98 +121,76 @@ export const handler = async () => {
         let containerId: string
 
         if (isCarousel && slideUrls.length > 1) {
-          // ── FLUXO DE CARROSSEL ──
-          // Passo 1: container para cada slide (is_carousel_item)
+          // ── CARROSSEL ──
+          // 1) Um container por slide, esperando CADA um ficar pronto
           const childIds: string[] = []
-          for (const url of slideUrls) {
-            const childRes = await fetch(`${GRAPH}/${accountId}/media`, {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                image_url: url.split('?')[0],  // remove cache-bust, Graph exige URL limpa
-                is_carousel_item: true,
-                access_token: token,
-              }),
+          for (let i = 0; i < slideUrls.length; i++) {
+            const childId = await createContainer(accountId, token, {
+              image_url: cleanUrl(slideUrls[i]),
+              is_carousel_item: true,
             })
-            const childData = await childRes.json()
-            if (childData.error) throw new Error(`Slide error: ${childData.error.message}`)
-            childIds.push(childData.id)
-            await new Promise(r => setTimeout(r, 2000))  // processar cada slide
+            await waitContainerReady(childId, token)  // espera o slide processar de verdade
+            childIds.push(childId)
+            console.log(`  slide ${i + 1}/${slideUrls.length} pronto: ${childId}`)
           }
 
-          // Passo 2: container pai CAROUSEL
-          const parentRes = await fetch(`${GRAPH}/${accountId}/media`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              media_type: 'CAROUSEL',
-              children: childIds.join(','),
-              caption,
-              access_token: token,
-            }),
+          // 2) Container pai CAROUSEL
+          containerId = await createContainer(accountId, token, {
+            media_type: 'CAROUSEL',
+            children: childIds.join(','),
+            caption,
           })
-          const parentData = await parentRes.json()
-          if (parentData.error) throw new Error(`Carousel error: ${parentData.error.message}`)
-          containerId = parentData.id
-          console.log(`Carrossel container criado: ${containerId} (${childIds.length} slides)`)
+          await waitContainerReady(containerId, token)
+          console.log(`Carrossel pronto: ${containerId} (${childIds.length} slides)`)
 
         } else {
-          // ── FLUXO DE IMAGEM ÚNICA ──
-          const containerRes = await fetch(`${GRAPH}/${accountId}/media`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              image_url: output.public_url.split('?')[0],
-              caption,
-              access_token: token,
-            }),
+          // ── IMAGEM ÚNICA ──
+          containerId = await createContainer(accountId, token, {
+            image_url: cleanUrl(output.public_url),
+            caption,
           })
-          const containerData = await containerRes.json()
-          if (containerData.error) throw new Error(`Container error: ${containerData.error.message}`)
-          containerId = containerData.id
-          console.log(`Container criado: ${containerId}`)
+          await waitContainerReady(containerId, token)
+          console.log(`Container pronto: ${containerId}`)
         }
 
-        // Aguarda processar (carrossel precisa de mais tempo)
-        await new Promise(r => setTimeout(r, isCarousel ? 5000 : 3000))
-
-        // Publica o container (mesmo para os dois fluxos)
-        const publishRes = await fetch(`${GRAPH}/${accountId}/media_publish`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ creation_id: containerId, access_token: token }),
-        })
-        const publishData = await publishRes.json()
-
-        if (publishData.error) {
-          throw new Error(`Publish error: ${publishData.error.message}`)
+        // Publica (com retry em erro transitório)
+        let instagramPostId = ''
+        let pubErr = ''
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          const publishRes = await fetch(`${GRAPH}/${accountId}/media_publish`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ creation_id: containerId, access_token: token }),
+          })
+          const publishData = await publishRes.json()
+          if (!publishData.error && publishData.id) { instagramPostId = publishData.id; break }
+          pubErr = publishData.error?.message ?? 'erro ao publicar'
+          // Media ainda processando → espera e tenta de novo
+          if (publishData.error?.code === 9007 || publishData.error?.code === 4) { await sleep(4000 * attempt); continue }
+          throw new Error(`Publish error: ${pubErr}`)
         }
+        if (!instagramPostId) throw new Error(`Publish error: ${pubErr}`)
 
-        const instagramPostId = publishData.id
         console.log(`Publicado! Instagram Post ID: ${instagramPostId}`)
 
-        // Atualiza status no banco
         await supabase.from('scheduled_posts').update({
-          status: 'published',
-          instagram_post_id: instagramPostId,
-          published_at: new Date().toISOString(),
+          status: 'published', instagram_post_id: instagramPostId, published_at: new Date().toISOString(),
         }).eq('id', post.id)
-
         await supabase.from('creative_outputs').update({
-          status: 'published',
-          instagram_post_id: instagramPostId,
-          published_at: new Date().toISOString(),
+          status: 'published', instagram_post_id: instagramPostId, published_at: new Date().toISOString(),
         }).eq('id', post.output_id)
 
       } catch (err: any) {
         console.error(`Erro ao publicar post ${post.id}:`, err.message)
         await supabase.from('scheduled_posts').update({
-          status: 'failed',
-          error_message: err.message,
+          status: 'failed', error_message: (err.message ?? 'erro desconhecido').slice(0, 500),
         }).eq('id', post.id)
       }
     }
 
-    return { statusCode: 200, body: JSON.stringify({ published: posts.length }) }
+    return { statusCode: 200, body: JSON.stringify({ processed: posts.length }) }
 
   } catch (err: any) {
-    console.error('Erro geral:', err.message)
+    console.error('publish-scheduled error:', err.message)
     return { statusCode: 500, body: err.message }
   }
 }
