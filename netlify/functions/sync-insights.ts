@@ -123,6 +123,18 @@ async function syncBrandInsights(brand: any) {
       const comments = fieldsData.comments_count ?? 0
 
       // ── 2. Insights (reach, saved, shares): tolerante a erro de permissão/métrica ──
+      //
+      // ⚠️ LIMITAÇÃO CONHECIDA (app em Standard Access / dev mode):
+      // O endpoint /{media-id}/insights exige a permissão `instagram_manage_insights`,
+      // que NÃO está disponível no app enquanto ele não passar pelo App Review da Meta.
+      // Por isso reach/saved/shares por POST vêm 0 hoje (erro #10 permission).
+      // Likes e comentários funcionam normalmente (vêm dos campos diretos do post, acima).
+      //
+      // ✅ QUANDO FIZER O APP REVIEW (para produção com contas de clientes):
+      //   1. Solicitar a permissão `instagram_manage_insights` (Advanced Access) no painel da Meta
+      //   2. Regerar o token incluindo essa permissão
+      //   3. A partir daí, reach/saved/shares por post passam a vir preenchidos automaticamente
+      //      (este código já está pronto, é só a permissão liberar)
       let reach = 0, saved = 0, shares = 0, impressions = 0
       try {
         // Métricas básicas que funcionam em imagem e carrossel

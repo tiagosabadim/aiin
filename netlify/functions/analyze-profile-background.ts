@@ -40,7 +40,13 @@ export const handler = async (event: any) => {
     const mediaData = await mediaRes.json()
     const posts = mediaData.data ?? []
 
-    // 3. Métricas agregadas da conta (métricas válidas na v22+: reach, views)
+    // 3. Métricas agregadas da CONTA (métricas válidas na v22+: reach, views)
+    //
+    // NOTA: insights de CONTA (/{ig-user-id}/insights) funcionam com read_insights /
+    // pages_read_engagement. Diferente dos insights de MÍDIA por post (ver sync-insights.ts),
+    // que exigem instagram_manage_insights e só liberam após o App Review da Meta.
+    // Métricas válidas mudam por versão da API — em maio/2025 'impressions' e 'profile_views'
+    // foram descontinuadas; usar 'reach' e 'views'.
     // 'impressions' e 'profile_views' foram descontinuadas — usar 'reach' e 'views'
     let reach = 0, views = 0
     try {
