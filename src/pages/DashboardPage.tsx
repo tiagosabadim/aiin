@@ -64,7 +64,10 @@ export function DashboardPage({ workspace, brand, subscription, credits, navigat
   const syncInsights = async () => {
     setSyncing(true)
     try {
-      await fetch('/api/sync-insights', { method: 'POST' })
+      await fetch('/api/sync-insights', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspace_id: workspace.id, brand_id: brand.id }),
+      })
       // Aguarda o sync processar e recarrega os dados
       await new Promise(r => setTimeout(r, 6000))
       await fetchAll()

@@ -23,20 +23,35 @@ interface PostInsight {
   engagement_rate: number
 }
 
-export const handler = async () => {
+export const handler = async (event: any) => {
   try {
-    console.log('sync-insights: iniciando...')
+    // Se vier workspace_id/brand_id no body → sincroniza SÓ aquela marca (chamada manual do dashboard)
+    // Se não vier → cron diário, percorre todas (uso controlado, agendado)
+    let scopeWorkspaceId: string | null = null
+    let scopeBrandId: string | null = null
+    try {
+      const body = JSON.parse(event?.body ?? '{}')
+      scopeWorkspaceId = body.workspace_id ?? null
+      scopeBrandId = body.brand_id ?? null
+    } catch { /* sem body = cron */ }
 
-    // Busca todas as marcas com token configurado
-    const { data: brands } = await supabase
+    console.log(`sync-insights: iniciando${scopeWorkspaceId ? ` (workspace ${scopeWorkspaceId})` : ' (todas as marcas - cron)'}...`)
+
+    // Monta a query: filtrada por workspace/brand, ou todas
+    let q = supabase
       .from('brand_profiles')
       .select('id, workspace_id, name, instagram_account_id, instagram_access_token')
       .not('instagram_access_token', 'is', null)
       .not('instagram_account_id', 'is', null)
 
+    if (scopeBrandId) q = q.eq('id', scopeBrandId)
+    else if (scopeWorkspaceId) q = q.eq('workspace_id', scopeWorkspaceId)
+
+    const { data: brands } = await q
+
     if (!brands?.length) {
-      console.log('Nenhuma marca com Instagram configurado.')
-      return { statusCode: 200, body: 'ok' }
+      console.log('Nenhuma marca com Instagram configurado neste escopo.')
+      return { statusCode: 200, body: JSON.stringify({ synced: 0 }) }
     }
 
     for (const brand of brands) {
