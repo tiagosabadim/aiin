@@ -152,6 +152,7 @@ export function DashboardPage({ workspace, brand, subscription, credits, navigat
   })()
 
   const maxReach = Math.max(...chartData.map(d => d.reach), 1)
+  const maxVal   = Math.max(...chartData.map(d => Math.max(d.reach, d.engagement)), 1)
 
   // Horários do metrics ou defaults
   const bestHours = metrics?.best_hours ?? [
@@ -305,8 +306,8 @@ export function DashboardPage({ workspace, brand, subscription, credits, navigat
               {/* Barras */}
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 140, marginBottom: 8 }}>
                 {chartData.map((d, i) => {
-                  const h = maxReach > 0 ? Math.max((d.reach / maxReach) * 130, d.reach > 0 ? 8 : 0) : 0
-                  const hEng = maxReach > 0 ? Math.max((d.engagement / maxReach) * 130, d.engagement > 0 ? 6 : 0) : 0
+                  const h = Math.min(d.reach > 0 ? Math.max((d.reach / maxVal) * 130, 8) : 0, 130)
+                  const hEng = Math.min(d.engagement > 0 ? Math.max((d.engagement / maxVal) * 130, 6) : 0, 130)
                   return (
                     <div key={i} style={{ flex: 1, display: 'flex', alignItems: 'flex-end', gap: 1, justifyContent: 'center' }}>
                       <div style={{ width: '45%', height: h, background: 'rgba(123,44,255,.5)', borderRadius: '3px 3px 0 0', minHeight: d.reach > 0 ? 4 : 0 }} />
