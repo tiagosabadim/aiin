@@ -84,36 +84,41 @@ async function syncBrandInsights(brand: any) {
 
   for (const output of outputs) {
     try {
-      // Busca insights do post via Graph API
-      const fields = 'reach,views,saved,shares,total_interactions'  // impressions descontinuada na v22
-      const res = await fetch(
-        `https://graph.facebook.com/v22.0/${output.instagram_post_id}/insights?metric=${fields}&access_token=${token}`
+      // ── 1. Likes e comentários: campos diretos do post (sempre disponíveis, sem insights) ──
+      const fieldsRes = await fetch(
+        `https://graph.facebook.com/v22.0/${output.instagram_post_id}?fields=like_count,comments_count,media_type&access_token=${token}`
       )
-      const data = await res.json()
+      const fieldsData = await fieldsRes.json()
 
-      if (data.error) {
-        console.log(`Post ${output.instagram_post_id}: ${data.error.message}`)
+      // Se o post não existe (deletado/ID antigo), pula sem quebrar
+      if (fieldsData.error) {
+        console.log(`Post ${output.instagram_post_id}: ${fieldsData.error.message} — pulando`)
         continue
       }
 
-      // Extrai métricas
-      const metrics: Record<string, number> = {}
-      for (const item of data.data ?? []) {
-        metrics[item.name] = item.values?.[0]?.value ?? 0
-      }
+      const likes = fieldsData.like_count ?? 0
+      const comments = fieldsData.comments_count ?? 0
 
-      // Busca likes separadamente (endpoint diferente)
-      const likeRes = await fetch(
-        `https://graph.facebook.com/v22.0/${output.instagram_post_id}?fields=like_count,comments_count&access_token=${token}`
-      )
-      const likeData = await likeRes.json()
+      // ── 2. Insights (reach, saved, shares): tolerante a erro de permissão/métrica ──
+      let reach = 0, saved = 0, shares = 0, impressions = 0
+      try {
+        // Métricas básicas que funcionam em imagem e carrossel
+        const insRes = await fetch(
+          `https://graph.facebook.com/v22.0/${output.instagram_post_id}/insights?metric=reach,saved,shares&access_token=${token}`
+        )
+        const insData = await insRes.json()
+        if (!insData.error) {
+          for (const item of insData.data ?? []) {
+            const v = item.values?.[0]?.value ?? 0
+            if (item.name === 'reach') reach = v
+            if (item.name === 'saved') saved = v
+            if (item.name === 'shares') shares = v
+          }
+        } else {
+          console.log(`Post ${output.instagram_post_id}: insights indisponíveis (${insData.error.message}) — usando só likes/comentários`)
+        }
+      } catch { /* insights podem não existir para o tipo de mídia; segue com likes/comentários */ }
 
-      const reach = metrics.reach ?? 0
-      const likes = likeData.like_count ?? metrics.likes ?? 0
-      const comments = likeData.comments_count ?? 0
-      const saved = metrics.saved ?? 0
-      const shares = metrics.shares ?? 0
-      const impressions = metrics.views ?? 0  // views substituiu impressions
       const engagementRate = reach > 0 ? ((likes + comments + saved + shares) / reach) * 100 : 0
 
       insights.push({
@@ -122,7 +127,6 @@ async function syncBrandInsights(brand: any) {
         engagement_rate: Math.round(engagementRate * 100) / 100,
       })
 
-      // Salva em post_insights (tabela que o dashboard lê) — upsert por instagram_post_id
       await supabase.from('post_insights').upsert({
         workspace_id: brand.workspace_id,
         output_id: output.id,
@@ -131,6 +135,8 @@ async function syncBrandInsights(brand: any) {
         engagement_rate: Math.round(engagementRate * 100) / 100,
         synced_at: new Date().toISOString(),
       }, { onConflict: 'instagram_post_id' })
+
+      console.log(`Post ${output.instagram_post_id}: ${likes} likes, ${comments} comentários, reach ${reach}`)
 
     } catch (err: any) {
       console.error(`Erro no post ${output.instagram_post_id}:`, err.message)
