@@ -150,16 +150,17 @@ async function syncBrandInsights(brand: any) {
         engagement_rate: Math.round(engagementRate * 100) / 100,
       })
 
-      await supabase.from('post_insights').upsert({
+      const { error: upErr } = await supabase.from('post_insights').upsert({
         workspace_id: brand.workspace_id,
         output_id: output.id,
         instagram_post_id: output.instagram_post_id,
         impressions, reach, likes, comments, saved, shares,
         engagement_rate: Math.round(engagementRate * 100) / 100,
         synced_at: new Date().toISOString(),
-      }, { onConflict: 'instagram_post_id' })
+      }, { onConflict: 'output_id' })
 
-      console.log(`Post ${output.instagram_post_id}: ${likes} likes, ${comments} comentários, reach ${reach}`)
+      if (upErr) console.error(`Falha ao salvar insights do post ${output.instagram_post_id}: ${upErr.message}`)
+      else console.log(`Post ${output.instagram_post_id}: ${likes} likes, ${comments} comentários, reach ${reach} — salvo`)
 
     } catch (err: any) {
       console.error(`Erro no post ${output.instagram_post_id}:`, err.message)
