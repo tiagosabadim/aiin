@@ -297,28 +297,33 @@ async function generateImageWithBrandContext(
   const activeSlogans = brand.slogans?.filter((s: any) => s.active).map((s: any) => s.text).join(', ') ?? ''
   const size = getImageSize(jobType)
 
-  const prompt = `Gere uma imagem profissional para Instagram da marca ${brand.name}.
+  const prompt = `Crie uma imagem para Instagram que PARA O SCROLL — visual de marca premium, alto contraste, NÃO um visual de IA genérico.
 
-DESCRIÇÃO VISUAL:
+DESCRIÇÃO VISUAL (direção de arte):
 ${slide.visual_prompt}
 
-TEXTO OBRIGATÓRIO NA IMAGEM (em português):
-${slide.headline ? `• Título principal: "${slide.headline}"` : ''}
-${slide.body ? `• Texto secundário: "${slide.body}"` : ''}
-${slide.cta ? `• Call-to-action: "${slide.cta}"` : ''}
+TEXTO NA IMAGEM (em português) — com hierarquia clara:
+${slide.headline ? `• Título principal (DOMINANTE, grande, legível na miniatura): "${slide.headline}"` : ''}
+${slide.body ? `• Texto secundário (menor, de apoio): "${slide.body}"` : ''}
+${slide.cta ? `• Call-to-action (destacado): "${slide.cta}"` : ''}
 
-IDENTIDADE DA MARCA (aplicar obrigatoriamente):
-• Logo: posicionar conforme referência visual enviada anteriormente
-• Cores: ${brandColors}
+IDENTIDADE DA MARCA (obrigatória):
+• Cores da marca como PROTAGONISTAS: ${brandColors}
 • Slogan: ${activeSlogans}
-• Estilo: ${brand.design_rules ?? 'profissional, clean, moderno'}
+• Estilo definido: ${brand.design_rules ?? 'editorial, alto contraste, ousado — evite genérico'}
 • Segmento: ${brand.segment}
+• Logo: posicionar conforme referência visual enviada anteriormente
+
+DIREÇÃO DE QUALIDADE:
+• Composição com 1 ponto focal forte e hierarquia clara
+• Contraste alto: o post deve destoar do feed, não se misturar
+• Texto grande, grosso e legível no celular, com contraste forte sobre o fundo
+• Evite: fundo branco chapado com texto centralizado, stock genérico, "clean corporate" sem personalidade
 
 REQUISITOS TÉCNICOS:
 • Formato: ${size === '1080x1350' ? '4:5 retrato (1080x1350px)' : '9:16 vertical (1080x1920px)'}
-• Qualidade máxima para Instagram
-• Texto legível e em português
-• Alta resolução, sem bordas desnecessárias`
+• Alta resolução, máxima qualidade, sem bordas desnecessárias
+• Todo texto em português, sem erros de ortografia`
 
   const requestBody: any = {
     model: 'gpt-4o',
@@ -460,14 +465,26 @@ Post único:
 • Palavras-chave naturais (SEO) que o público buscaria
 `}
 
-Para o visual_prompt de cada slide, descreva em INGLÊS detalhado:
-- Composição e layout (onde fica cada elemento)
-- Iluminação e ambiente
-- Elementos visuais e estilo
-- Textos que devem aparecer NA imagem (em português)
-- Referência às cores da marca: ${brandColors}
-- Estilo fotográfico/ilustrativo
-- Qualidade e mood da imagem
+════════════════════════════════════
+DIREÇÃO DE ARTE — VISUAL QUE PARA O SCROLL
+════════════════════════════════════
+O visual é o que decide se a pessoa para de rolar. Imagem genérica de banco/IA ("clean, modern, professional") é IGNORADA. Pense como diretor de arte de uma marca premium.
+
+Princípios para CADA visual_prompt:
+- CONTRASTE FORTE: a capa precisa destoar do feed. Cor saturada, fundo escuro com elemento vibrante, ou composição inesperada. Nada de "fundo branco com texto centralizado".
+- HIERARQUIA CLARA: 1 ponto focal dominante. O olho sabe pra onde ir em 1 segundo. Texto principal GRANDE e legível mesmo na miniatura.
+- ESPAÇO PARA O TEXTO: reserve área de respiro/contraste onde o headline vai entrar (não polua atrás do texto).
+- COERÊNCIA DE MARCA: use as cores da marca (${brandColors}) como protagonistas, não como detalhe.
+- ESTILO INTENCIONAL: escolha UM estilo forte e coerente entre os slides (ex: editorial bold, minimalismo de alto contraste, foto realista com overlay gráfico, ilustração de marca). Evite o visual "IA genérico".
+- LEGIBILIDADE MOBILE: o texto tem que ser lido numa tela pequena. Fonte grossa, contraste alto texto/fundo.
+
+Para o visual_prompt (em INGLÊS, detalhado para o gerador de imagem), descreva:
+- Conceito visual e ponto focal dominante
+- Composição e layout (onde cada elemento fica, onde o texto respira)
+- Paleta (cores da marca como protagonistas), iluminação e mood
+- Estilo escolhido (consistente entre slides)
+- Textos que aparecem NA imagem (em português), com indicação de hierarquia (qual é grande/dominante)
+- Nível de contraste e como o visual se destaca no feed
 
 ════════════════════════════════════
 FORMATO DE RESPOSTA
@@ -517,7 +534,7 @@ ${JSON.stringify({
     result.slides = [{
       headline: title || brand.name,
       body: extraContext || '',
-      visual_prompt: `Professional Instagram post for ${brand.name}, ${brand.segment}, colors: ${brandColors}, clean modern design`,
+      visual_prompt: `Bold high-contrast Instagram post for ${brand.name} (${brand.segment}), brand colors as protagonists: ${brandColors}, strong focal point, editorial style, large legible headline, scroll-stopping — not generic`,
     }]
   }
 
