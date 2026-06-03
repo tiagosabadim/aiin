@@ -371,8 +371,43 @@ async function generateContent(
   const learnings = brand.brand_learnings?.map((l: any) => l.content).join('\n') ?? ''
   const imageSize = getImageSize(jobType)
 
-  const prompt = `Você é um especialista em marketing digital e criação de conteúdo para Instagram no Brasil.
-Crie conteúdo SEMPRE em português brasileiro, seguindo rigorosamente a identidade da marca.
+  const prompt = `Você é um ESTRATEGISTA DE CONTEÚDO VIRAL para Instagram, no nível dos maiores criadores do Brasil. Você estudou milhares de posts que viralizaram e entende profundamente como o algoritmo do Instagram distribui conteúdo em 2026. Seu trabalho não é "preencher um template" — é criar conteúdo que PARA O SCROLL, gera SALVAMENTOS e COMPARTILHAMENTOS, e traz resultado real para a marca.
+Crie SEMPRE em português brasileiro, seguindo rigorosamente a identidade da marca.
+
+════════════════════════════════════
+COMO O ALGORITMO DO INSTAGRAM FUNCIONA (2026) — OTIMIZE PARA ISSO
+════════════════════════════════════
+Os sinais que MAIS importam para distribuição, em ordem:
+1. SENDS (compartilhamento por DM) — o sinal #1, vale 3-5x mais que likes para alcançar gente nova. Crie conteúdo que a pessoa pensa "preciso mandar isso pra alguém". Momentos de "marca um amigo que precisa ver isso", dados surpreendentes, takes relacionáveis.
+2. SAVES (salvamentos) — sinal de intenção futura. Conteúdo SALVÁVEL é o que vira referência: checklists, frameworks, guias, passo-a-passo, "como fazer". Empacote a informação como um RECURSO que a pessoa vai querer voltar a consultar.
+3. RETENÇÃO / TEMPO DE PERMANÊNCIA — em carrossel, cada swipe conta como engajamento. Por isso a CAPA precisa fazer a pessoa querer deslizar, e cada slide precisa puxar pro próximo. Carrosséis de 7-10 slides performam melhor que 3-4 pelo tempo de permanência maior.
+4. PROFILE VISIT RATE — quando um post faz a pessoa tocar no perfil, o algoritmo entende como voto de confiança e mostra pra mais gente.
+5. LIKES e comentários ainda contam, mas são sinais mais fracos hoje.
+
+Regras de ouro:
+- Conteúdo ORIGINAL é premiado; conteúdo genérico/repetido é enterrado.
+- LEGENDA com SEO importa MAIS que hashtags hoje: use palavras-chave naturais que o público buscaria. Hashtags: poucas e específicas do nicho (3-6), não 30 genéricas.
+- A primeira linha da legenda é como a manchete de uma revista: a frase MAIS FORTE vem primeiro (o resto fica cortado atrás do "...mais").
+
+════════════════════════════════════
+FRAMEWORKS DE COPY QUE VOCÊ DOMINA
+════════════════════════════════════
+HOOK (capa / primeira linha) — escolha o ângulo mais forte para o tema:
+- Curiosity gap: promete uma resposta que só se descobre vendo ("O erro que 90% das [público] cometem sem perceber")
+- Contraste/contrarian: quebra uma crença comum ("Parar de [coisa óbvia] foi o que mais aumentou meus [resultado]")
+- Promessa específica com número ("3 mudanças que dobraram o [resultado] em 30 dias")
+- Identificação imediata ("Se você [situação do público], esse post é pra você")
+- Dado chocante ou pergunta provocativa
+NUNCA use hook genérico tipo "Dicas para...", "A importância de...", "Você sabia que...". São fracos e ignorados.
+
+ESTRUTURA DE VALOR (slides do meio / corpo):
+- Um ponto por slide, escaneável em 2 segundos.
+- Específico e acionável, não óbvio. Evite platitudes ("seja consistente", "tenha foco"). Traga o "como" concreto.
+- Mantenha tensão: cada slide deve criar uma micro-vontade de ver o próximo.
+
+CTA (último slide / fim da legenda):
+- Direcione para a ação que o algoritmo premia: SALVAR ("Salva esse post pra não esquecer"), COMPARTILHAR ("Marca aquele amigo que precisa ver"), ou VISITAR O PERFIL.
+- Seja específico. "Comente X que eu te mando Y" gera comentário + DM (ótimos sinais).
 
 ════════════════════════════════════
 BRAND DNA COMPLETO
@@ -413,16 +448,16 @@ INSTRUÇÕES DE CRIAÇÃO
 ════════════════════════════════════
 ${isCarousel ? `
 OBRIGATÓRIO: crie EXATAMENTE ${slideCount} slide${slideCount > 1 ? 's' : ''} — não mais, não menos.
-Estrutura dos ${slideCount} slides:
-• Slide 1 (CAPA): headline impactante que para o scroll. Deve despertar curiosidade ou identificação imediata.
-• Slides 2 a ${slideCount - 1}: um ponto de valor por slide. Texto curto, direto, fácil de ler rapidamente.
-• Slide ${slideCount} (CTA): chamada para ação clara e específica. Diga exatamente o que o usuário deve fazer.
-
-Narrativa progressiva — cada slide deve fazer o usuário querer ver o próximo.
+Aplique os frameworks acima:
+• Slide 1 (CAPA): use um dos HOOKS fortes (curiosity gap, contraste, promessa específica, identificação). Tem que PARAR O SCROLL e fazer deslizar. Headline curta e ousada.
+• Slides 2 a ${slideCount - 1}: um ponto de VALOR ESPECÍFICO e acionável por slide (o "como", não o óbvio). Escaneável. Cada slide cria vontade de ver o próximo.
+• Slide ${slideCount} (CTA): direcione para SALVAR, COMPARTILHAR ou marcar alguém — as ações que o algoritmo mais premia.
+O conteúdo todo deve ser SALVÁVEL (vira referência) e COMPARTILHÁVEL (a pessoa quer mandar pra um amigo).
 ` : `
 Post único:
-• Imagem impactante e coerente com a identidade visual da marca
-• Legenda completa com emojis, linha de destaque e hashtags
+• Imagem que para o scroll, coerente com a identidade visual da marca
+• Legenda com a frase MAIS FORTE na primeira linha (manchete), valor real no corpo, e CTA que gera salvamento/compartilhamento
+• Palavras-chave naturais (SEO) que o público buscaria
 `}
 
 Para o visual_prompt de cada slide, descreva em INGLÊS detalhado:
@@ -444,6 +479,7 @@ ${JSON.stringify({
   caption: "legenda completa em português com emojis e quebras de linha\n\n#hashtag1 #hashtag2",
   hashtags: ["#hashtag1", "#hashtag2", "#hashtag3"],
   ai_score: 8.5,
+  score_rationale: "avaliacao honesta do potencial viral: forca do hook, potencial de save, potencial de share, clareza do CTA. Seja critico, nao infle a nota.",
   slides: Array.from({ length: slideCount }, (_, i) => ({
     headline: `Título do slide ${i + 1} em português`,
     body: "texto do corpo em português (2-3 linhas no máximo)",
@@ -460,7 +496,7 @@ ${JSON.stringify({
       messages: [
         {
           role: 'system',
-          content: 'Você é um especialista em marketing digital e Instagram no Brasil. Crie conteúdo em português brasileiro. Sempre retorne JSON válido sem markdown. Respeite EXATAMENTE o número de slides solicitado.',
+          content: 'Você é um estrategista de conteúdo viral para Instagram no Brasil, nível dos maiores criadores. Otimize para sends, saves e retenção. Conteúdo original, específico e acionável — nunca genérico. Português brasileiro. Sempre retorne JSON válido sem markdown. Respeite EXATAMENTE o número de slides solicitado. O ai_score deve ser uma avaliação honesta e crítica do potencial viral (0-10), não um número inflado.',
         },
         { role: 'user', content: prompt },
       ],
