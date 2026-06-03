@@ -297,7 +297,7 @@ async function generateImageWithBrandContext(
   const activeSlogans = brand.slogans?.filter((s: any) => s.active).map((s: any) => s.text).join(', ') ?? ''
   const size = getImageSize(jobType)
 
-  const prompt = `Crie uma imagem para Instagram que PARA O SCROLL — visual de marca premium, alto contraste, NÃO um visual de IA genérico.
+  const prompt = `Crie uma imagem para Instagram que PARA O SCROLL — criativa, com hierarquia visual forte, fiel à identidade da marca, e NUNCA com cara de template de IA genérico.
 
 DESCRIÇÃO VISUAL (direção de arte):
 ${slide.visual_prompt}
@@ -307,18 +307,21 @@ ${slide.headline ? `• Título principal (DOMINANTE, grande, legível na miniat
 ${slide.body ? `• Texto secundário (menor, de apoio): "${slide.body}"` : ''}
 ${slide.cta ? `• Call-to-action (destacado): "${slide.cta}"` : ''}
 
-IDENTIDADE DA MARCA (obrigatória):
+IDENTIDADE DA MARCA (obrigatória — o ESTILO vem daqui):
 • Cores da marca como PROTAGONISTAS: ${brandColors}
 • Slogan: ${activeSlogans}
-• Estilo definido: ${brand.design_rules ?? 'editorial, alto contraste, ousado — evite genérico'}
+• Estilo da marca: ${brand.design_rules ?? 'siga o tom e as cores da marca'}
 • Segmento: ${brand.segment}
 • Logo: posicionar conforme referência visual enviada anteriormente
+O visual deve traduzir a identidade ACIMA — não impor um estilo externo. Marca minimalista = visual minimalista; marca vibrante = visual vibrante.
 
-DIREÇÃO DE QUALIDADE:
-• Composição com 1 ponto focal forte e hierarquia clara
-• Contraste alto: o post deve destoar do feed, não se misturar
-• Texto grande, grosso e legível no celular, com contraste forte sobre o fundo
-• Evite: fundo branco chapado com texto centralizado, stock genérico, "clean corporate" sem personalidade
+PRINCÍPIOS DE QUALIDADE (universais, independente do estilo da marca):
+• 1 ponto focal forte e hierarquia visual clara (o texto principal é o maior elemento)
+• Composição criativa e intencional — fuja do óbvio e do genérico
+• Respiro: área limpa onde o texto entra, sem poluir atrás dele
+• Texto legível no celular, com contraste suficiente sobre o fundo (qualquer que seja a paleta)
+• Se usar foto, que tenha sujeito forte e ângulo interessante — nada de stock sem alma
+• Evite: layout centralizado por preguiça, stock genérico, "ar de template de IA"
 
 REQUISITOS TÉCNICOS:
 • Formato: ${size === '1080x1350' ? '4:5 retrato (1080x1350px)' : '9:16 vertical (1080x1920px)'}
@@ -466,25 +469,32 @@ Post único:
 `}
 
 ════════════════════════════════════
-DIREÇÃO DE ARTE — VISUAL QUE PARA O SCROLL
+DIREÇÃO DE ARTE — PRINCÍPIOS UNIVERSAIS (valem para QUALQUER marca)
 ════════════════════════════════════
-O visual é o que decide se a pessoa para de rolar. Imagem genérica de banco/IA ("clean, modern, professional") é IGNORADA. Pense como diretor de arte de uma marca premium.
+Estes princípios são INEGOCIÁVEIS, independente do estilo da marca. São o que separa um post amador de um profissional:
 
-Princípios para CADA visual_prompt:
-- CONTRASTE FORTE: a capa precisa destoar do feed. Cor saturada, fundo escuro com elemento vibrante, ou composição inesperada. Nada de "fundo branco com texto centralizado".
-- HIERARQUIA CLARA: 1 ponto focal dominante. O olho sabe pra onde ir em 1 segundo. Texto principal GRANDE e legível mesmo na miniatura.
-- ESPAÇO PARA O TEXTO: reserve área de respiro/contraste onde o headline vai entrar (não polua atrás do texto).
-- COERÊNCIA DE MARCA: use as cores da marca (${brandColors}) como protagonistas, não como detalhe.
-- ESTILO INTENCIONAL: escolha UM estilo forte e coerente entre os slides (ex: editorial bold, minimalismo de alto contraste, foto realista com overlay gráfico, ilustração de marca). Evite o visual "IA genérico".
-- LEGIBILIDADE MOBILE: o texto tem que ser lido numa tela pequena. Fonte grossa, contraste alto texto/fundo.
+- CRIATIVIDADE NA CONSTRUÇÃO: cada post precisa de um CONCEITO visual, não um layout óbvio. Fuja do previsível. Imagem genérica de banco/IA é IGNORADA no feed.
+- HIERARQUIA VISUAL: 1 ponto focal dominante. O olho sabe pra onde ir em 1 segundo. O texto principal é o maior elemento, legível até na miniatura.
+- RESPIRO / USO DO ESPAÇO: reserve área limpa onde o texto entra — nunca poluir atrás do headline. Espaço negativo é ferramenta, não desperdício.
+- FOTO/IMAGEM QUE PRENDE: se houver foto, ela precisa ter um sujeito forte, ângulo interessante, profundidade — algo que segura o olhar. Nada de stock sem alma.
+- LEGIBILIDADE MOBILE: texto lido numa tela pequena. Contraste suficiente entre texto e fundo (seja qual for a paleta).
+- COMPOSIÇÃO INTENCIONAL: enquadramento, equilíbrio, alinhamento — tudo proposital. Nada centralizado por preguiça.
+
+════════════════════════════════════
+ESTILO VISUAL — VEM DO BRAND DNA (NÃO invente um estilo próprio)
+════════════════════════════════════
+O ESTILO (minimalista, editorial, colorido, sóbrio, divertido, luxuoso, etc.) deve sair da identidade da marca acima — NÃO de uma preferência sua. Releia o Brand DNA, as regras de design (${brand.design_rules ?? 'não especificadas'}), o tom de voz e as cores, e traduza ISSO em visual.
+- Cores da marca (${brandColors}) são a paleta. Use-as com intenção.
+- Se a marca é minimalista, o visual é minimalista (e ainda assim com hierarquia e criatividade). Se é vibrante, é vibrante. Respeite.
+- Mantenha o MESMO estilo coerente entre todos os slides do carrossel.
 
 Para o visual_prompt (em INGLÊS, detalhado para o gerador de imagem), descreva:
-- Conceito visual e ponto focal dominante
+- O conceito visual criativo do slide e o ponto focal dominante
 - Composição e layout (onde cada elemento fica, onde o texto respira)
-- Paleta (cores da marca como protagonistas), iluminação e mood
-- Estilo escolhido (consistente entre slides)
-- Textos que aparecem NA imagem (em português), com indicação de hierarquia (qual é grande/dominante)
-- Nível de contraste e como o visual se destaca no feed
+- O estilo traduzido do Brand DNA (consistente entre slides)
+- Paleta da marca aplicada com intenção, iluminação e mood coerentes com a marca
+- Textos que aparecem NA imagem (em português), com hierarquia (qual é dominante)
+- Como a composição prende a atenção sem trair a identidade da marca
 
 ════════════════════════════════════
 FORMATO DE RESPOSTA
@@ -534,7 +544,7 @@ ${JSON.stringify({
     result.slides = [{
       headline: title || brand.name,
       body: extraContext || '',
-      visual_prompt: `Bold high-contrast Instagram post for ${brand.name} (${brand.segment}), brand colors as protagonists: ${brandColors}, strong focal point, editorial style, large legible headline, scroll-stopping — not generic`,
+      visual_prompt: `Creative Instagram post for ${brand.name} (${brand.segment}), brand colors as protagonists: ${brandColors}, strong focal point, clear visual hierarchy, large legible headline, style faithful to the brand identity, scroll-stopping — never a generic AI template`,
     }]
   }
 
