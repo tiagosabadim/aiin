@@ -14,11 +14,16 @@ interface Props {
   navigate: (r: string) => void
 }
 
+interface ClientSuggestions {
+  reels?: { title: string; duration: string; script: string }[]
+  stories?: { period: string; type: string; content: string }[]
+}
 interface Campaign {
   id: string; title: string; period: string
   start_date: string; end_date: string
   posts_per_week: number; theme: string | null
   status: string; created_at: string; items?: CampaignItem[]
+  client_suggestions?: ClientSuggestions | null
 }
 
 interface CampaignItem {
@@ -382,6 +387,41 @@ export function CampaignsPage({ workspace, brand, subscription, credits, navigat
                           )
                         })}
 
+                        {/* Sugestões para o cliente gravar (Reels + Stories) */}
+                        {campaign.client_suggestions && ((campaign.client_suggestions.reels?.length ?? 0) > 0 || (campaign.client_suggestions.stories?.length ?? 0) > 0) && (
+                          <div style={{ margin: '14px 16px', padding: '16px 18px', background: 'linear-gradient(135deg,#070D1F,#1a1130)', borderRadius: 14, color: '#fff' }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>🎬 Para você gravar e turbinar a campanha</div>
+                            <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.6)', marginBottom: 14, lineHeight: 1.45 }}>
+                              A aiin cria os posts acima. Mas é o Reels e o Story que fazem seu Instagram crescer e alcançar gente nova. Grave estes — leva poucos minutos e multiplica o resultado da campanha.
+                            </div>
+
+                            {(campaign.client_suggestions.reels ?? []).map((r, i) => (
+                              <div key={i} style={{ marginBottom: 12, padding: '12px 14px', background: 'rgba(255,255,255,.06)', borderRadius: 10, border: '1px solid rgba(255,255,255,.1)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                                  <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: 'rgba(24,95,165,.3)', color: '#7FB8E8' }}>🎥 REELS {i + 1}</span>
+                                  <span style={{ fontSize: 13, fontWeight: 600 }}>{r.title}</span>
+                                  <span style={{ fontSize: 10, color: 'rgba(255,255,255,.5)', marginLeft: 'auto' }}>⏱ {r.duration}</span>
+                                </div>
+                                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.85)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{r.script}</div>
+                              </div>
+                            ))}
+
+                            {(campaign.client_suggestions.stories ?? []).length > 0 && (
+                              <div style={{ marginTop: 8 }}>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: '#FF8FC7', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 8 }}>📱 Rotina de Stories do dia</div>
+                                {(campaign.client_suggestions.stories ?? []).map((s, i) => (
+                                  <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 8, alignItems: 'flex-start' }}>
+                                    <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 99, flexShrink: 0, background: s.period.toLowerCase().includes('manh') ? 'rgba(255,180,80,.2)' : 'rgba(123,44,255,.25)', color: s.period.toLowerCase().includes('manh') ? '#FFB350' : '#B98FFF', whiteSpace: 'nowrap' }}>
+                                      {s.period.toLowerCase().includes('manh') ? '☀️' : '🌙'} {s.period} · {s.type}
+                                    </span>
+                                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,.85)', lineHeight: 1.45 }}>{s.content}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         {/* Footer */}
                         <div style={{ padding: '10px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#FAFAFA' }}>
                           <span style={{ fontSize: 11, color: '#9CA3AF' }}>
@@ -424,7 +464,6 @@ function PlannerForm({ workspace, brand, credits, onGenerated, navigate }: { wor
   const [nPost, setNPost]   = useState(2)
   const [nCar,  setNCar]    = useState(1)
   const [nSt,   setNSt]     = useState(0)
-  const [nReels, setNReels] = useState(0)
   const [touched, setTouched] = useState(false)  // usuário mexeu manualmente no mix?
   const [loading, setLoading] = useState(false)
   const [error, setError]   = useState<string|null>(null)
@@ -436,19 +475,18 @@ function PlannerForm({ workspace, brand, credits, onGenerated, navigate }: { wor
   // Recalcula o mix sugerido sempre que período ou ppw mudam (a não ser que o usuário tenha mexido)
   useEffect(() => {
     if (touched) return
-    // Distribuição sugerida (algoritmo 2026): Reels p/ alcance, carrossel p/ saves, story p/ relação, post p/ reforço
-    const reels = Math.max(1, Math.round(targetTotal * 0.3))   // motor de crescimento
-    const car   = Math.max(1, Math.round(targetTotal * 0.3))   // retenção/saves
-    const st    = Math.round(targetTotal * 0.2)                // relacionamento
-    const post  = Math.max(0, targetTotal - reels - car - st)  // reforço
-    setNPost(post); setNCar(car); setNSt(st); setNReels(reels)
+    // Distribuição sugerida dos ESTÁTICOS que a aiin produz (Reels/Stories interativos viram sugestão à parte)
+    const car  = Math.max(1, Math.round(targetTotal * 0.35))  // retenção/saves
+    const st   = Math.round(targetTotal * 0.20)               // story (arte)
+    const post = Math.max(0, targetTotal - car - st)          // reforço
+    setNPost(post); setNCar(car); setNSt(st)
   }, [period, ppw, targetTotal, touched])
 
   // Helper: marca como tocado ao mexer manualmente
   const setMix = (setter: (n:number)=>void) => (n:number) => { setTouched(true); setter(n) }
 
-  const total  = nPost + nCar + nSt + nReels
-  const estCr  = nPost + nCar*3 + nSt + nReels
+  const total  = nPost + nCar + nSt
+  const estCr  = nPost + nCar*3 + nSt
   const card: React.CSSProperties = { background:'#fff', border:'1px solid rgba(7,13,31,.08)', borderRadius:14, padding:'14px 16px' }
 
   const generate = async () => {
@@ -464,7 +502,7 @@ function PlannerForm({ workspace, brand, credits, onGenerated, navigate }: { wor
         end_date:end.toISOString().split('T')[0], posts_per_week:ppw, theme, status:'draft',
       }).select().single()
       if (e) throw e
-      const mix = [...Array(nPost).fill('post_simples'),...Array(nCar).fill('carrossel_5'),...Array(nSt).fill('story'),...Array(nReels).fill('capa_reels')]
+      const mix = [...Array(nPost).fill('post_simples'),...Array(nCar).fill('carrossel_5'),...Array(nSt).fill('story')]
       const fmix = mix.reduce((a:Record<string,number>,t)=>{a[t]=(a[t]??0)+1;return a},{})
       const mixStr = Object.entries(fmix).map(([k,v])=>`${v}× ${TYPE_LABELS[k]??k}`).join(', ')
       const prompt = `Você é um ESTRATEGISTA DE CONTEÚDO VIRAL para Instagram no Brasil, nível dos maiores criadores. Monte um cronograma de campanha coeso e estratégico.
@@ -480,29 +518,36 @@ ESTRATÉGIA (algoritmo 2026):
 - Varie ganchos e ângulos entre os dias. Distribua os formatos de forma inteligente ao longo das datas (não agrupe tudo do mesmo tipo).
 - Datas comemorativas/sazonais relevantes ao segmento, se houver no período, devem ser aproveitadas.
 
-Para CADA item, gere o roteiro ADEQUADO AO FORMATO:
-- post_simples / carrossel: title, objective, context (briefing para a IA criar a arte).
-- capa_reels: além disso, um campo "reels_script" com roteiro do Reels — gancho nos primeiros 3 segundos, desenvolvimento (falas/cenas curtas), e CTA. Pensado para retenção e compartilhamento.
-- story: um campo "story_sequence" com a sequência de telas (3-5 telas), incluindo onde usar enquete/quiz/caixa de pergunta/contagem regressiva para gerar interação.
+A aiin PRODUZ os posts estáticos (post_simples, carrossel). Para cada item, gere: title, objective, context (briefing para a IA criar a arte).
+
+IMPORTANTE — além dos estáticos, gere SUGESTÕES DE CONTEÚDO PARA O CLIENTE GRAVAR. Só post estático não faz o Instagram crescer; o cliente precisa de Reels (alcance) e Stories (relação). A aiin não grava esses vídeos, mas ORIENTA o cliente exatamente o que fazer:
+- 2 ROTEIROS DE REELS: vídeos rápidos de até 1 minuto, alinhados ao tema da campanha, para intercalar com os posts. Cada um com: título, duração sugerida, e roteiro passo a passo (gancho nos 3 primeiros segundos, desenvolvimento em cenas curtas, CTA). Linguagem prática de "grave isso assim".
+- ROTINA DE STORIES voltada à performance da campanha: o que postar de manhã e à tarde para gerar interação. Ex: de manhã abrir uma CAIXINHA DE PERGUNTA sobre o tema; à tarde uma ENQUETE. Sempre conectado ao objetivo da campanha (engajar, descobrir dores, aquecer para uma oferta).
 
 Retorne SOMENTE JSON:
-{"items":[{"date":"YYYY-MM-DD","format":"post_simples|carrossel_5|story|capa_reels","title":"tema pt-BR","objective":"objetivo","context":"briefing para a IA","hashtags":["#tag"],"reels_script":"roteiro do reels SE for capa_reels, senão vazio","story_sequence":"sequência de telas SE for story, senão vazio"}]}`
+{
+  "items":[{"date":"YYYY-MM-DD","format":"post_simples|carrossel_5","title":"tema pt-BR","objective":"objetivo","context":"briefing para a IA","hashtags":["#tag"]}],
+  "client_suggestions": {
+    "reels": [{"title":"título do reels","duration":"ex: 30-45s","script":"roteiro passo a passo para o cliente gravar"}],
+    "stories": [{"period":"manhã","type":"caixinha de pergunta","content":"o que perguntar, conectado à campanha"},{"period":"tarde","type":"enquete","content":"a enquete, conectada à campanha"}]
+  }
+}`
       const res = await fetch('/api/generate-schedule', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({prompt}) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error??'Erro')
       const parsed = JSON.parse(data.content)
-      await supabase.from('campaign_items').insert(parsed.items.map((it:any,idx:number)=>{
-        // Anexa o roteiro especifico do formato ao contexto que alimenta a geracao
-        let ctx = it.context ?? ''
-        if (it.format === 'capa_reels' && it.reels_script) ctx += `\n\n=== ROTEIRO DO REELS ===\n${it.reels_script}`
-        if (it.format === 'story' && it.story_sequence)   ctx += `\n\n=== SEQUÊNCIA DE STORIES ===\n${it.story_sequence}`
-        return {
-          campaign_id:camp.id, workspace_id:workspace.id, brand_id:brand.id,
-          position:idx+1, scheduled_date:it.date, content_type:it.format,
-          title:it.title, objective:it.objective??'', extra_context:ctx,
-          hashtags:it.hashtags??[], required_credits:CREDIT_COSTS[it.format as ContentType]??1,
-        }
-      }))
+      // Salva as sugestões de conteúdo para o cliente gravar (reels + rotina de stories)
+      if (parsed.client_suggestions) {
+        await supabase.from('content_campaigns')
+          .update({ client_suggestions: parsed.client_suggestions })
+          .eq('id', camp.id)
+      }
+      await supabase.from('campaign_items').insert(parsed.items.map((it:any,idx:number)=>({
+        campaign_id:camp.id, workspace_id:workspace.id, brand_id:brand.id,
+        position:idx+1, scheduled_date:it.date, content_type:it.format,
+        title:it.title, objective:it.objective??'', extra_context:it.context??'',
+        hashtags:it.hashtags??[], required_credits:CREDIT_COSTS[it.format as ContentType]??1,
+      })))
       onGenerated()
     } catch(e:any) { setError(e.message??'Erro') }
     finally { setLoading(false) }
@@ -564,7 +609,6 @@ Retorne SOMENTE JSON:
           {label:'Posts estáticos',sub:'1 cr.',color:'#7B2CFF',bg:'rgba(123,44,255,.1)',val:nPost,set:setMix(setNPost)},
           {label:'Carrosséis 5p',  sub:'3 cr.',color:'#F72585',bg:'rgba(247,37,133,.1)',val:nCar, set:setMix(setNCar) },
           {label:'Stories avulsos',sub:'1 cr.',color:'#FF6A00',bg:'rgba(255,106,0,.1)', val:nSt,  set:setMix(setNSt)  },
-          {label:'Reels (roteiro)', sub:'1 cr.',color:'#185FA5',bg:'rgba(24,95,165,.1)', val:nReels,set:setMix(setNReels)},
         ].map(row=>(
           <div key={row.label} style={{ display:'flex',alignItems:'center',marginBottom:10 }}>
             <div style={{ width:30,height:30,borderRadius:8,background:row.bg,display:'flex',alignItems:'center',justifyContent:'center',color:row.color,marginRight:10,flexShrink:0,fontSize:14 }}>▣</div>
