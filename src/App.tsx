@@ -38,6 +38,10 @@ export default function App() {
   // independente de estar logado como usuario ou nao.
   if (window.location.hash === '#admin' || route === ('admin' as any)) return <AdminPage />
 
+  // Guarda extra contra flash de onboarding: se ha usuario mas o workspace
+  // ainda nao foi resolvido (estado intermediario), segura no Loader.
+  if (user && wsLoading) return <Loader fullscreen />
+
   if (!user) {
     // #login no hash ou clicou em entrar → login; senão landing
     const wantsLogin = showLogin || window.location.hash === '#login'
