@@ -438,7 +438,13 @@ Tipografia: ${brand.typography?.title ?? 'não definida'}
 Regras de design: ${brand.design_rules ?? 'nenhuma regra específica'}
 Palavras/abordagens proibidas: ${brand.forbidden_words?.join(', ') ?? 'nenhuma'}
 Instagram: ${brand.instagram_handle ?? 'não informado'}
-${learnings ? `\nAprendizados de posts anteriores:\n${learnings}` : ''}
+${learnings ? `
+════════════════════════════════════
+⚡ INTELIGÊNCIA DESTA MARCA (aprendido com a performance REAL dos posts)
+════════════════════════════════════
+Estes aprendizados vêm dos dados reais de performance da conta. DÊ PRIORIDADE a eles — eles dizem o que funciona ESPECIFICAMENTE para este público. Se contradisser uma regra geral, o dado real desta marca vence.
+${learnings}
+` : ''}
 
 ════════════════════════════════════
 BRIEFING DO PEDIDO

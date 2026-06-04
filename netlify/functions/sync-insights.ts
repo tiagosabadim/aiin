@@ -181,60 +181,85 @@ async function syncBrandInsights(brand: any) {
 
   if (!insights.length) return
 
-  // Analisa os dados com GPT-4o e gera aprendizado
+  // Analisa os dados com GPT-4o e gera aprendizado de performance
   const learning = await generateLearning(brand, outputs, insights)
   if (learning) {
+    // Consolida: mantém só o aprendizado de performance MAIS RECENTE (não empilha contraditórios).
+    // Apaga os de performance anteriores desta marca e insere o novo.
+    await supabase.from('brand_learnings')
+      .delete()
+      .eq('brand_id', brandId)
+      .eq('learning_type', 'performance')
     await supabase.from('brand_learnings').insert({
       workspace_id,
       brand_id: brandId,
       learning_type: 'performance',
       content: learning,
     })
-    console.log(`${name}: aprendizado salvo.`)
+    console.log(`${name}: aprendizado de performance atualizado.`)
   }
 }
 
 async function generateLearning(brand: any, outputs: any[], insights: PostInsight[]): Promise<string> {
-  // Ordena por engajamento
-  const sorted = [...insights].sort((a, b) => b.engagement_rate - a.engagement_rate)
+  const outputMap = Object.fromEntries(outputs.map(o => [o.instagram_post_id, o]))
+
+  // Score de interação robusto: usa likes+comentários+saves+shares (não depende só de reach,
+  // que pode vir 0 por falta de permissão de insights de mídia). Saves e shares pesam mais.
+  const interactionScore = (i: any) =>
+    (i.likes ?? 0) + (i.comments ?? 0) * 2 + (i.saved ?? 0) * 3 + (i.shares ?? 0) * 4
+
+  const enriched = insights.map(i => {
+    const o = outputMap[i.instagram_post_id]
+    return { ...i, output: o, score: interactionScore(i), format: o?.format ?? 'desconhecido' }
+  }).filter(e => e.output)
+
+  const sorted  = [...enriched].sort((a, b) => b.score - a.score)
   const top3    = sorted.slice(0, 3)
   const bottom3 = sorted.slice(-3)
 
-  // Cruza com captions
-  const outputMap = Object.fromEntries(outputs.map(o => [o.instagram_post_id, o]))
+  const fmtLine = (e: any) =>
+    `[${e.format}] "${e.output?.caption?.slice(0,70) ?? 'sem legenda'}..." → ${e.likes} likes, ${e.comments} coment, ${e.saved} salv, ${e.shares} compart (alcance ${e.reach})`
 
-  const topPosts = top3.map(i => {
-    const o = outputMap[i.instagram_post_id]
-    return `"${o?.caption?.slice(0,80) ?? 'sem legenda'}..." → ${i.engagement_rate}% engaj, ${i.reach} alcance, ${i.likes} likes, ${i.saved} salvamentos`
-  }).join('\n')
+  const topPosts    = top3.map(fmtLine).join('\n')
+  const bottomPosts = bottom3.map(fmtLine).join('\n')
 
-  const bottomPosts = bottom3.map(i => {
-    const o = outputMap[i.instagram_post_id]
-    return `"${o?.caption?.slice(0,80) ?? 'sem legenda'}..." → ${i.engagement_rate}% engaj, ${i.reach} alcance`
-  }).join('\n')
+  // Performance por FORMATO (qual tipo de conteúdo rende mais para esta marca)
+  const byFormat: Record<string, { n: number; score: number }> = {}
+  for (const e of enriched) {
+    byFormat[e.format] = byFormat[e.format] ?? { n: 0, score: 0 }
+    byFormat[e.format].n += 1
+    byFormat[e.format].score += e.score
+  }
+  const formatPerf = Object.entries(byFormat)
+    .map(([f, v]) => `${f}: média ${(v.score / v.n).toFixed(1)} de interação (${v.n} posts)`)
+    .join('\n')
 
   const avgEngagement = insights.reduce((s, i) => s + i.engagement_rate, 0) / insights.length
   const avgReach      = insights.reduce((s, i) => s + i.reach, 0) / insights.length
 
-  const prompt = `Você é um analista de Instagram especializado em pequenos negócios no Brasil.
+  const prompt = `Você é um estrategista de conteúdo que analisa a performance REAL de uma marca no Instagram para ensinar a IA de geração a criar posts cada vez melhores PARA ESTA MARCA ESPECÍFICA.
 
 MARCA: ${brand.name} (${brand.segment})
-PERÍODO ANALISADO: últimos 90 dias
-POSTS ANALISADOS: ${insights.length}
-MÉDIAS: ${avgEngagement.toFixed(2)}% engajamento, ${Math.round(avgReach)} alcance médio
+PERÍODO: últimos 90 dias | POSTS: ${insights.length}
+MÉDIAS: ${avgEngagement.toFixed(2)}% engajamento, ${Math.round(avgReach)} alcance
 
-TOP 3 POSTS (maior engajamento):
+PERFORMANCE POR FORMATO:
+${formatPerf}
+
+TOP POSTS (mais interação — saves e compartilhamentos pesam mais):
 ${topPosts}
 
-PIORES 3 POSTS (menor engajamento):
+PIORES POSTS:
 ${bottomPosts}
 
-Baseado nesses dados reais, escreva um aprendizado curto (máximo 4 frases) que:
-1. Identifica o padrão do que funcionou melhor
-2. Aponta o que deve ser evitado
-3. Dá uma recomendação prática para os próximos posts
+Analise os dados e gere um APRENDIZADO ACIONÁVEL para guiar as próximas gerações desta marca. Foque em padrões concretos, não em conselhos genéricos. Escreva em português, direto, no formato:
 
-Seja específico, direto e baseado nos dados. Em português.`
+• FORMATO QUE MAIS RENDE: [qual formato performa melhor para esta marca, com base nos dados]
+• TEMAS/ÂNGULOS QUE FUNCIONARAM: [padrões dos top posts — tipo de assunto, abordagem, tom]
+• O QUE EVITAR: [padrões dos piores posts]
+• RECOMENDAÇÃO PARA OS PRÓXIMOS POSTS: [direção concreta e específica]
+
+Se os dados ainda forem poucos (menos de 5 posts), diga que a base ainda é pequena e dê uma recomendação inicial cautelosa, sem conclusões fortes.`
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
