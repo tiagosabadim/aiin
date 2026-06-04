@@ -15,9 +15,21 @@ interface Props {
   navigate: (r: string) => void
 }
 
+interface ReelTake {
+  seconds: string; action: string; speech: string; onscreen?: string
+}
+interface ReelSuggestion {
+  title: string; duration: string; timing?: string; hook?: string
+  setting?: string; takes?: ReelTake[]; cta?: string; caption?: string; hashtags?: string[]
+  script?: string // compat com campanhas antigas
+}
+interface StorySuggestion {
+  period: string; type: string; setting?: string; speech?: string
+  sticker?: string; goal?: string; content?: string // content = compat antigo
+}
 interface ClientSuggestions {
-  reels?: { title: string; duration: string; script: string }[]
-  stories?: { period: string; type: string; content: string }[]
+  reels?: ReelSuggestion[]
+  stories?: StorySuggestion[]
 }
 interface Campaign {
   id: string; title: string; period: string
@@ -396,26 +408,62 @@ export function CampaignsPage({ workspace, brand, subscription, credits, navigat
                               A aiin cria os posts acima. Mas é o Reels e o Story que fazem seu Instagram crescer e alcançar gente nova. Grave estes — leva poucos minutos e multiplica o resultado da campanha.
                             </div>
 
-                            {(campaign.client_suggestions.reels ?? []).map((r, i) => (
-                              <div key={i} style={{ marginBottom: 12, padding: '12px 14px', background: 'rgba(255,255,255,.06)', borderRadius: 10, border: '1px solid rgba(255,255,255,.1)' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+{(campaign.client_suggestions.reels ?? []).map((r, i) => (
+                              <div key={i} style={{ marginBottom: 14, padding: '14px 16px', background: 'rgba(255,255,255,.06)', borderRadius: 10, border: '1px solid rgba(255,255,255,.1)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
                                   <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: 'rgba(24,95,165,.3)', color: '#7FB8E8' }}>🎥 REELS {i + 1}</span>
+                                  {r.timing && <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: 'rgba(255,255,255,.08)', color: 'rgba(255,255,255,.6)' }}>{r.timing}</span>}
                                   <span style={{ fontSize: 13, fontWeight: 600 }}>{r.title}</span>
                                   <span style={{ fontSize: 10, color: 'rgba(255,255,255,.5)', marginLeft: 'auto' }}>⏱ {r.duration}</span>
                                 </div>
-                                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.85)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{r.script}</div>
+
+                                {r.setting && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.65)', marginBottom: 8 }}><strong style={{ color: 'rgba(255,255,255,.85)' }}>🎬 Cenário:</strong> {r.setting}</div>}
+                                {r.hook && <div style={{ fontSize: 12, color: '#FFD9A0', marginBottom: 10, padding: '6px 10px', background: 'rgba(255,180,80,.1)', borderRadius: 8 }}><strong>Gancho (0-3s):</strong> "{r.hook}"</div>}
+
+                                {/* Tabela de takes (roteiro de gravação) */}
+                                {(r.takes ?? []).length > 0 && (
+                                  <div style={{ marginBottom: 10 }}>
+                                    {(r.takes ?? []).map((t, ti) => (
+                                      <div key={ti} style={{ display: 'flex', gap: 10, padding: '8px 0', borderTop: ti === 0 ? 'none' : '1px solid rgba(255,255,255,.08)' }}>
+                                        <span style={{ fontSize: 10, fontWeight: 700, color: '#7FB8E8', flexShrink: 0, width: 48, paddingTop: 1 }}>{t.seconds}</span>
+                                        <div style={{ flex: 1 }}>
+                                          <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.6)', marginBottom: 2 }}>🎬 {t.action}</div>
+                                          {t.speech && <div style={{ fontSize: 12.5, color: '#fff', lineHeight: 1.4 }}>🗣️ "{t.speech}"</div>}
+                                          {t.onscreen && <div style={{ fontSize: 11, color: '#B98FFF', marginTop: 2 }}>📝 Texto na tela: {t.onscreen}</div>}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {/* Fallback: campanhas antigas tinham só 'script' */}
+                                {!r.takes && r.script && <div style={{ fontSize: 12, color: 'rgba(255,255,255,.85)', lineHeight: 1.5, whiteSpace: 'pre-wrap', marginBottom: 10 }}>{r.script}</div>}
+
+                                {r.cta && <div style={{ fontSize: 12, color: '#6EE7B7', marginBottom: 8 }}><strong>✦ CTA:</strong> {r.cta}</div>}
+                                {r.caption && (
+                                  <div style={{ marginTop: 8, padding: '8px 12px', background: 'rgba(255,255,255,.04)', borderRadius: 8, border: '1px solid rgba(255,255,255,.08)' }}>
+                                    <div style={{ fontSize: 10, fontWeight: 700, color: '#FF8FC7', textTransform: 'uppercase', marginBottom: 4 }}>📄 Legenda pronta</div>
+                                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,.9)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{r.caption}</div>
+                                    {(r.hashtags ?? []).length > 0 && <div style={{ fontSize: 11, color: '#7FB8E8', marginTop: 6 }}>{(r.hashtags ?? []).join(' ')}</div>}
+                                  </div>
+                                )}
                               </div>
                             ))}
 
                             {(campaign.client_suggestions.stories ?? []).length > 0 && (
                               <div style={{ marginTop: 8 }}>
-                                <div style={{ fontSize: 11, fontWeight: 700, color: '#FF8FC7', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 8 }}>📱 Rotina de Stories do dia</div>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: '#FF8FC7', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 10 }}>📱 Roteiro de Stories da campanha</div>
                                 {(campaign.client_suggestions.stories ?? []).map((s, i) => (
-                                  <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 8, alignItems: 'flex-start' }}>
-                                    <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 99, flexShrink: 0, background: s.period.toLowerCase().includes('manh') ? 'rgba(255,180,80,.2)' : 'rgba(123,44,255,.25)', color: s.period.toLowerCase().includes('manh') ? '#FFB350' : '#B98FFF', whiteSpace: 'nowrap' }}>
-                                      {s.period.toLowerCase().includes('manh') ? '☀️' : '🌙'} {s.period} · {s.type}
-                                    </span>
-                                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,.85)', lineHeight: 1.45 }}>{s.content}</span>
+                                  <div key={i} style={{ marginBottom: 10, padding: '10px 12px', background: 'rgba(255,255,255,.04)', borderRadius: 8, border: '1px solid rgba(255,255,255,.08)' }}>
+                                    <div style={{ display: 'flex', gap: 8, marginBottom: 5, alignItems: 'center', flexWrap: 'wrap' }}>
+                                      <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 99, background: 'rgba(123,44,255,.25)', color: '#B98FFF', whiteSpace: 'nowrap' }}>{s.period}</span>
+                                      <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.75)' }}>{s.type}</span>
+                                    </div>
+                                    {s.setting && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.6)', marginBottom: 3 }}>🎬 {s.setting}</div>}
+                                    {s.speech && <div style={{ fontSize: 12.5, color: '#fff', lineHeight: 1.4, marginBottom: 3 }}>🗣️ "{s.speech}"</div>}
+                                    {s.sticker && <div style={{ fontSize: 11.5, color: '#FFD9A0', padding: '4px 8px', background: 'rgba(255,180,80,.1)', borderRadius: 6, marginBottom: 3 }}>🎯 Sticker: {s.sticker}</div>}
+                                    {s.content && !s.speech && <div style={{ fontSize: 12, color: 'rgba(255,255,255,.85)', lineHeight: 1.45 }}>{s.content}</div>}
+                                    {s.goal && <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,.45)', marginTop: 3 }}>Objetivo: {s.goal}</div>}
                                   </div>
                                 ))}
                               </div>
@@ -506,37 +554,84 @@ function PlannerForm({ workspace, brand, credits, onGenerated, navigate }: { wor
       const mix = [...Array(nPost).fill('post_simples'),...Array(nCar).fill('carrossel_5'),...Array(nSt).fill('story')]
       const fmix = mix.reduce((a:Record<string,number>,t)=>{a[t]=(a[t]??0)+1;return a},{})
       const mixStr = Object.entries(fmix).map(([k,v])=>`${v}× ${TYPE_LABELS[k]??k}`).join(', ')
-      const prompt = `Você é um ESTRATEGISTA DE CONTEÚDO VIRAL para Instagram no Brasil, nível dos maiores criadores. Monte um cronograma de campanha coeso e estratégico.
+      const prompt = `Você é um ESTRATEGISTA DE CONTEÚDO VIRAL para Instagram no Brasil, nível dos maiores criadores. Sua tarefa é DESENHAR uma campanha completa e coesa para o período informado — não uma lista de posts soltos, mas uma estratégia onde estáticos, Reels e Stories CONVERSAM entre si e constroem uma narrativa.
 
 BRAND DNA:\n${brand.ai_brand_dna??''}
 MARCA: ${brand.name} | Segmento: ${brand.segment} | Tom: ${brand.tone_of_voice}
-PERÍODO: ${period} (${start.toLocaleDateString('pt-BR')} até ${end.toLocaleDateString('pt-BR')}) | ${ppw} posts/sem | Mix base: ${mixStr}
+DURAÇÃO DA CAMPANHA: ${weeks} semana(s) (${start.toLocaleDateString('pt-BR')} até ${end.toLocaleDateString('pt-BR')})
+POSTS ESTÁTICOS que a aiin vai produzir: ${mixStr} (total ${total})
 TEMA DA CAMPANHA: ${theme||'livre'}
 
-ESTRATÉGIA (algoritmo 2026):
-- O cronograma deve contar uma narrativa ao longo do período, não posts soltos. Conecte os temas.
-- REELS = alcance de novos seguidores (o motor de crescimento). CARROSSEL = retenção e saves. STORY = relacionamento e interação diária. POST = reforço de marca.
-- Varie ganchos e ângulos entre os dias. Distribua os formatos de forma inteligente ao longo das datas (não agrupe tudo do mesmo tipo).
-- Datas comemorativas/sazonais relevantes ao segmento, se houver no período, devem ser aproveitadas.
+═══ DIMENSIONE A CAMPANHA COMO ESTRATEGISTA ═══
+VOCÊ decide a quantidade certa de cada conteúdo com base na DURAÇÃO. Não use números fixos. Referências de frequência saudável (algoritmo 2026):
+- REELS: ~2 a 3 por semana (motor de alcance). Então: 1 semana ≈ 2-3 reels, 2 semanas ≈ 4-6, 1 mês ≈ 8-12 reels.
+- STORIES: idealmente diários. Distribua CAIXINHAS DE PERGUNTA e ENQUETES ao longo de TODA a campanha — não só 1 de cada. Ex: caixinha de pergunta 2-3x por semana, enquete 2-3x por semana, alternando, mais contagens regressivas perto de datas/ofertas importantes. 1 mês deve ter MUITAS interações de story distribuídas.
+- Os Reels e Stories devem CONVERSAR com os posts estáticos e com o arco da campanha: aquecer no início, aprofundar no meio, converter no fim.
 
-A aiin PRODUZ os posts estáticos (post_simples, carrossel). Para cada item, gere: title, objective, context (briefing para a IA criar a arte).
+═══ NARRATIVA ═══
+- A campanha tem um arco: início (apresentar/aquecer), meio (entregar valor/educar), fim (converter/chamar pra ação).
+- Varie ganchos e ângulos. Distribua formatos de forma inteligente (não agrupe tudo do mesmo tipo no mesmo dia).
+- Aproveite datas comemorativas/sazonais do segmento, se houver no período.
 
-IMPORTANTE — além dos estáticos, gere SUGESTÕES DE CONTEÚDO PARA O CLIENTE GRAVAR. Só post estático não faz o Instagram crescer; o cliente precisa de Reels (alcance) e Stories (relação). A aiin não grava esses vídeos, mas ORIENTA o cliente exatamente o que fazer:
-- 2 ROTEIROS DE REELS: vídeos rápidos de até 1 minuto, alinhados ao tema da campanha, para intercalar com os posts. Cada um com: título, duração sugerida, e roteiro passo a passo (gancho nos 3 primeiros segundos, desenvolvimento em cenas curtas, CTA). Linguagem prática de "grave isso assim".
-- ROTINA DE STORIES voltada à performance da campanha: o que postar de manhã e à tarde para gerar interação. Ex: de manhã abrir uma CAIXINHA DE PERGUNTA sobre o tema; à tarde uma ENQUETE. Sempre conectado ao objetivo da campanha (engajar, descobrir dores, aquecer para uma oferta).
+A aiin PRODUZ os estáticos. Para cada item estático, gere: title, objective, context (briefing pra IA criar a arte).
 
-Retorne SOMENTE JSON:
+Os REELS e STORIES são SUGESTÕES para o CLIENTE gravar/fazer (a aiin não grava vídeo). Entregue um ROTEIRO DE PRODUÇÃO PROFISSIONAL, o mais MASTIGADO possível — o cliente pega e grava sem precisar pensar. Para cada REELS, detalhe:
+- title: nome do reels
+- duration: duração total (ex: 35s)
+- timing: quando entra na campanha (ex: Semana 1)
+- hook: a primeira fala/frase exata dos 3 primeiros segundos (o que prende)
+- setting: ambiente/cenário sugerido (ex: "cozinha com luz natural", "fundo neutro, celular na altura dos olhos") e tom
+- takes: ARRAY de cenas/takes, cada um com:
+    • seconds: quantos segundos dura (ex: "0-3s", "3-8s")
+    • action: o que aparece/o que fazer na cena (enquadramento, ação)
+    • speech: o que FALAR exatamente naquele take (texto literal; se não houver fala, deixe "")
+    • onscreen: texto que aparece na tela naquele take (se houver)
+- cta: a chamada para ação no fim
+- caption: a LEGENDA pronta do reels (primeira linha forte, corpo, CTA, com quebras)
+- hashtags: array de hashtags do reels
+
+Para cada STORY, detalhe:
+- period: quando (ex: "Semana 1 - manhã")
+- type: caixinha de pergunta | enquete | contagem regressiva | bastidores | depoimento
+- setting: ambiente/como gravar (ex: "selfie na loja", "tela com texto")
+- speech: o que falar/escrever exatamente
+- sticker: o texto exato do sticker interativo (a pergunta da caixinha, as opções da enquete, etc.)
+- goal: o que esse story busca (engajar, descobrir dor, aquecer oferta)
+
+Gere a QUANTIDADE adequada à duração de ${weeks} semana(s) — bem mais que 2 reels e 2 stories se a campanha for longa.
+
+Retorne SOMENTE JSON (sem markdown):
 {
-  "items":[{"date":"YYYY-MM-DD","format":"post_simples|carrossel_5","title":"tema pt-BR","objective":"objetivo","context":"briefing para a IA","hashtags":["#tag"]}],
+  "items":[{"date":"YYYY-MM-DD","format":"post_simples|carrossel_5|story","title":"tema pt-BR","objective":"objetivo","context":"briefing para a IA","hashtags":["#tag"]}],
   "client_suggestions": {
-    "reels": [{"title":"título do reels","duration":"ex: 30-45s","script":"roteiro passo a passo para o cliente gravar"}],
-    "stories": [{"period":"manhã","type":"caixinha de pergunta","content":"o que perguntar, conectado à campanha"},{"period":"tarde","type":"enquete","content":"a enquete, conectada à campanha"}]
+    "reels": [{
+      "title":"...","duration":"35s","timing":"Semana 1",
+      "hook":"primeira frase dos 3s",
+      "setting":"ambiente e tom",
+      "takes":[{"seconds":"0-3s","action":"o que aparece","speech":"o que falar","onscreen":"texto na tela"}],
+      "cta":"chamada final",
+      "caption":"legenda pronta",
+      "hashtags":["#tag"]
+    }],
+    "stories": [{
+      "period":"Semana 1 - manhã","type":"caixinha de pergunta",
+      "setting":"como gravar","speech":"o que falar/escrever",
+      "sticker":"texto do sticker interativo","goal":"objetivo"
+    }]
   }
 }`
       const res = await fetch('/api/generate-schedule', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({prompt}) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error??'Erro')
-      const parsed = JSON.parse(data.content)
+      let parsed
+      try {
+        parsed = JSON.parse(data.content)
+      } catch {
+        throw new Error('A resposta veio muito grande e foi cortada. Tente um período menor ou menos posts por semana.')
+      }
+      if (!parsed.items || !Array.isArray(parsed.items)) {
+        throw new Error('Não consegui montar o cronograma. Tente novamente.')
+      }
       // Salva as sugestões de conteúdo para o cliente gravar (reels + rotina de stories)
       if (parsed.client_suggestions) {
         await supabase.from('content_campaigns')

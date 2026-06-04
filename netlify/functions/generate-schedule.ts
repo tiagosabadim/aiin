@@ -36,6 +36,8 @@ export const handler = async (event: any) => {
       body: JSON.stringify({
         model: 'gpt-4o',
         response_format: { type: 'json_object' },
+        max_tokens: 8000, // campanhas de 1 mês com roteiros detalhados geram JSON grande
+        temperature: 0.8,
         messages: [
           {
             role: 'system',
