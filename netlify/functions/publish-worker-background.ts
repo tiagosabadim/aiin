@@ -82,6 +82,7 @@ export const handler = async (event: any) => {
     const token      = brand.instagram_access_token
     const caption    = output.caption ?? ''
     const isCarousel = output.format?.startsWith('carrossel')
+    const isStory    = output.format === 'story' || output.format === 'story_sequencia'
 
     let slideUrls: string[] = [output.public_url]
     if (isCarousel) {
@@ -97,7 +98,15 @@ export const handler = async (event: any) => {
 
     let containerId: string
 
-    if (isCarousel && slideUrls.length > 1) {
+    if (isStory) {
+      // STORY: media_type STORIES, imagem vertical 9:16. Story não usa caption.
+      containerId = await createContainer(accountId, token, {
+        image_url: cleanUrl(output.public_url),
+        media_type: 'STORIES',
+      })
+      await waitContainerReady(containerId, token)
+      console.log(`Story pronto: ${containerId}`)
+    } else if (isCarousel && slideUrls.length > 1) {
       const childIds: string[] = []
       for (let i = 0; i < slideUrls.length; i++) {
         const childId = await createContainer(accountId, token, {
