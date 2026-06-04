@@ -367,6 +367,8 @@ img { display: block; max-width: 100%; }
   text-decoration: none;
 }
 .btn:disabled { opacity: .4; cursor: not-allowed; pointer-events: none; }
+.btn-refresh { transition: background .15s, border-color .15s; }
+.btn-refresh:hover:not(:disabled) { background: rgba(123,44,255,.06) !important; border-color: rgba(123,44,255,.3) !important; color: #7B2CFF !important; }
 /* inline (dentro de lista/tabela) */
 .btn-sm  { height: 32px; padding: 0 12px; font-size: 12px; border-radius: var(--r8); }
 /* padrão para todas as páginas */

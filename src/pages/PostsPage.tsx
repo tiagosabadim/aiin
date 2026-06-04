@@ -29,7 +29,7 @@ function SkeletonCard() {
     <div className="post-card">
       <div style={{ width: '100%', aspectRatio: '4/5', background: 'var(--surface-3)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
         <div className="spinner lg" />
-        <span style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 500 }}>Gerando com IA…</span>
+        <span style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 500 }}>A aiin está criando…</span>
         <div style={{ display: 'flex', gap: 5 }}>
           {['Texto', 'Imagem', 'Upload'].map(s => (
             <span key={s} style={{ fontSize: 9, padding: '2px 7px', borderRadius: 99, background: 'rgba(247,37,133,.1)', color: 'var(--accent-pink)', border: '1px solid rgba(247,37,133,.15)' }}>{s}</span>
@@ -170,6 +170,12 @@ export function PostsPage({ workspaceId, userId }: Props) {
   const [loading, setLoading]     = useState(true)
   const [processing, setProcessing] = useState(0)
   const [filter, setFilter]       = useState<OutputStatus | 'all'>('all')
+  const [refreshing, setRefreshing] = useState(false)
+  const doRefresh = async () => {
+    setRefreshing(true)
+    await Promise.all([fetchOutputs(), fetchProcessing()])
+    setTimeout(() => setRefreshing(false), 600)
+  }
   const [modalOutput, setModalOutput] = useState<CreativeOutput | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editCaption, setEditCaption] = useState('')
@@ -344,7 +350,10 @@ export function PostsPage({ workspaceId, userId }: Props) {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-md" style={{ border:'1px solid rgba(7,13,31,.12)', background:'transparent', color:'#374151' }} onClick={() => { fetchOutputs(); fetchProcessing() }}>↺ Atualizar</button>
+          <button className="btn btn-md btn-refresh" disabled={refreshing} style={{ border:'1px solid rgba(7,13,31,.12)', background:'transparent', color:'#374151', display:'inline-flex', alignItems:'center', gap:6 }} onClick={doRefresh}>
+            <span style={{ display:'inline-block', transition:'transform .6s', transform: refreshing ? 'rotate(360deg)' : 'none' }}>↻</span>
+            {refreshing ? 'Atualizando...' : 'Atualizar'}
+          </button>
           {pendingCt > 0 && (
             <button className="btn btn-primary btn-md" onClick={handleApproveAll}>✓ Aprovar todos</button>
           )}
@@ -356,8 +365,8 @@ export function PostsPage({ workspaceId, userId }: Props) {
         <div className="generating-banner">
           <div className="spinner" />
           <div>
-            <div className="generating-banner-text">Gerando {processing} post{processing > 1 ? 's' : ''} com IA</div>
-            <div className="generating-banner-sub">DALL-E 3 + GPT-4o · até 60 segundos · atualiza automaticamente</div>
+            <div className="generating-banner-text">A aiin está criando {processing} post{processing > 1 ? 's' : ''}</div>
+            <div className="generating-banner-sub">A aiin está criando · até 60 segundos · atualiza automaticamente</div>
           </div>
         </div>
       )}
