@@ -5,6 +5,7 @@ import { LoginPage } from './pages/LoginPage'
 import { LandingPage } from './pages/LandingPage'
 import { PaywallModal } from './pages/PaywallModal'
 import { OnboardingPage } from './pages/OnboardingPage'
+import { Loader } from './components/Loader'
 import { AppLayout } from './layouts/AppLayout'
 import { DashboardPage } from './pages/DashboardPage'
 import { BriefingPage } from './pages/BriefingPage'
@@ -31,7 +32,7 @@ export default function App() {
 
   const navigate = (to: Route) => { setRoute(to); window.location.hash = to }
 
-  if (authLoading || wsLoading) return <SplashScreen />
+  if (authLoading || wsLoading) return <Loader fullscreen />
 
   // Painel admin: area separada com login proprio. Acessivel via #admin
   // independente de estar logado como usuario ou nao.
@@ -98,15 +99,3 @@ export default function App() {
   )
 }
 
-function SplashScreen() {
-  return (
-    <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'var(--bg)', flexDirection:'column', gap:20 }}>
-      <div style={{ width:52, height:52, borderRadius:16, background:'var(--gradient)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, color:'white', boxShadow:'0 8px 24px rgba(247,37,133,.3)' }}>★</div>
-      <div style={{ display:'flex', gap:6 }}>
-        {[0,1,2].map(i => (
-          <div key={i} style={{ width:6, height:6, borderRadius:'50%', background:'var(--accent-pink)', animation:`pulse 1.2s ease-in-out ${i*.2}s infinite` }} />
-        ))}
-      </div>
-    </div>
-  )
-}

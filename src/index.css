@@ -702,3 +702,14 @@ select.input { cursor: pointer; }
   .page { padding: 12px 12px 80px; }
   .page-title { font-size: 17px !important; }
 }
+
+/* ── aiin Loader (componente de loading padrão) ── */
+@keyframes aiinLoaderPulse {
+  0%, 100% { opacity: .25; transform: scale(.8); }
+  50%      { opacity: 1;   transform: scale(1); }
+}
+@keyframes aiinLoaderHalo {
+  0%, 100% { opacity: .15; transform: scale(.95); }
+  50%      { opacity: .35; transform: scale(1.05); }
+}
+.aiin-loader-halo { animation: aiinLoaderHalo 1.8s ease-in-out infinite; }

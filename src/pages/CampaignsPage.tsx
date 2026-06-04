@@ -2,6 +2,7 @@
 // Editar item: mostra prompt, permite editar, anexar foto, aprovar
 // Excluir item: opção de gerar nova ideia
 import { useState, useEffect, useRef } from 'react'
+import { LoaderDots } from '../components/Loader'
 import { supabase } from '../lib/supabase'
 import { createContentJob } from '../lib/api'
 import type { Workspace, BrandProfile, Subscription, ContentType } from '../types/database'
@@ -630,7 +631,7 @@ Retorne SOMENTE JSON:
       <div style={{ flex:1, minHeight:8 }} />
 
       <button onClick={generate} disabled={loading||total===0} style={{ width:'100%',height:48,background:loading||total===0?'#e5e7eb':'linear-gradient(135deg,#FF6A00,#F72585,#7B2CFF)',border:'none',borderRadius:12,color:loading||total===0?'#9CA3AF':'white',fontSize:14,fontWeight:700,fontFamily:'inherit',cursor:loading||total===0?'not-allowed':'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,boxShadow:loading||total===0?'none':'0 4px 16px rgba(247,37,133,.3)' }}>
-        {loading?<><div style={{ width:16,height:16,border:'2.5px solid rgba(255,255,255,.3)',borderTopColor:'white',borderRadius:'50%',animation:'spin 1s linear infinite' }} /> Gerando cronograma…</>:<><span style={{ fontSize:16 }}>✦</span> Gerar cronograma</>}
+        {loading?<><LoaderDots color="white" /> Gerando cronograma…</>:<><span style={{ fontSize:16 }}>✦</span> Gerar cronograma</>}
       </button>
     </div>
   )
