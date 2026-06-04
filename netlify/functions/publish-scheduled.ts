@@ -46,14 +46,21 @@ export const handler = async () => {
       // não pegar o mesmo post de novo (evita publicação duplicada).
       await supabase.from('scheduled_posts').update({ status: 'publishing' }).eq('id', post.id)
 
-      // Dispara a worker em background (não espera terminar — invocação assíncrona)
-      fetch(`${APP_URL}/.netlify/functions/publish-worker-background`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ post_id: post.id }),
-      }).catch(err => console.error(`Falha ao disparar worker para ${post.id}:`, err.message))
-
-      console.log(`  worker disparado para post ${post.id}`)
+      // Dispara a worker em background. PRECISA de await: sem ele, a função cron
+      // termina e a requisição HTTP pendente é cancelada antes de chegar na worker.
+      // Background functions respondem 202 na hora e seguem rodando, então o await é rápido.
+      try {
+        const resp = await fetch(`${APP_URL}/.netlify/functions/publish-worker-background`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ post_id: post.id }),
+        })
+        console.log(`  worker disparado para post ${post.id} (status ${resp.status})`)
+      } catch (err: any) {
+        console.error(`Falha ao disparar worker para ${post.id}:`, err.message)
+        // Se não conseguiu disparar, devolve para scheduled para tentar de novo no próximo ciclo
+        await supabase.from('scheduled_posts').update({ status: 'scheduled' }).eq('id', post.id)
+      }
     }
 
     return { statusCode: 200, body: JSON.stringify({ dispatched: posts.length }) }
