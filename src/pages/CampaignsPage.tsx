@@ -590,6 +590,9 @@ function PlannerForm({ workspace, brand, subscription, credits, onGenerated, nav
       const mix = [...Array(nPost).fill('post_simples'),...Array(nCar).fill('carrossel_5'),...Array(nSt).fill('story')]
       const fmix = mix.reduce((a:Record<string,number>,t)=>{a[t]=(a[t]??0)+1;return a},{})
       const mixStr = Object.entries(fmix).map(([k,v])=>`${v}× ${TYPE_LABELS[k]??k}`).join(', ')
+      // Quantidades de roteiros escolhidas pelo usuário (0 se desligou os roteiros)
+      const reelsCount = wantScripts ? nReels : 0
+      const storiesCount = wantScripts ? nStories : 0
       const prompt = `Você é um ESTRATEGISTA DE CONTEÚDO VIRAL para Instagram no Brasil, nível dos maiores criadores. Sua tarefa é DESENHAR uma campanha completa e coesa para o período informado — não uma lista de posts soltos, mas uma estratégia onde estáticos, Reels e Stories CONVERSAM entre si e constroem uma narrativa.
 
 BRAND DNA:\n${brand.ai_brand_dna??''}
