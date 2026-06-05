@@ -279,7 +279,7 @@ export function CampaignsPage({ workspace, brand, subscription, credits, navigat
         </div>
 
         {/* Form embutido — redireciona para BriefingPage com o form */}
-        <PlannerForm workspace={workspace} brand={brand} credits={credits} onGenerated={() => fetchCampaigns()} navigate={navigate} />
+        <PlannerForm workspace={workspace} brand={brand} subscription={subscription} credits={credits} onGenerated={() => fetchCampaigns()} navigate={navigate} />
       </div>
 
       {/* ── DIREITA: lista de cronogramas ── */}
@@ -504,7 +504,7 @@ import { generateBrandDNA } from '../lib/api'
 type Period = 'semana' | 'quinzena' | 'mes'
 const PERIOD_DAYS: Record<Period,number> = { semana:7, quinzena:14, mes:30 }
 
-function PlannerForm({ workspace, brand, credits, onGenerated, navigate }: { workspace: Workspace; brand: BrandProfile; credits: number; onGenerated: () => void; navigate: (r: string) => void }) {
+function PlannerForm({ workspace, brand, subscription, credits, onGenerated, navigate }: { workspace: Workspace; brand: BrandProfile; subscription: Subscription | null; credits: number; onGenerated: () => void; navigate: (r: string) => void }) {
   const { user } = useAuth()
   const [period, setPeriod] = useState<Period>('semana')
   const [ppw, setPpw]       = useState(3)
@@ -514,12 +514,25 @@ function PlannerForm({ workspace, brand, credits, onGenerated, navigate }: { wor
   const [nCar,  setNCar]    = useState(1)
   const [nSt,   setNSt]     = useState(0)
   const [touched, setTouched] = useState(false)  // usuário mexeu manualmente no mix?
+  // Roteiros para gravação (reels + stories)
+  const [wantScripts, setWantScripts] = useState(true)
+  const [nReels, setNReels] = useState(0)
+  const [nStories, setNStories] = useState(0)
+  const [scriptsTouched, setScriptsTouched] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError]   = useState<string|null>(null)
 
   // Total de posts no período = posts/semana × número de semanas
   const weeks = period==='semana' ? 1 : period==='quinzena' ? 2 : 4
   const targetTotal = ppw * weeks
+
+  // Cota de roteiros inclusa no plano: Starter 1/semana, Premium/Master 2/semana.
+  // Heurística pelo nome do plano (fallback 1/semana). Reels + stories contam juntos.
+  const planName = (subscription as any)?.plan?.name ?? ''
+  const scriptsPerWeek = /premium|master/i.test(planName) ? 2 : 1
+  const includedScripts = scriptsPerWeek * weeks
+  const totalScripts = wantScripts ? (nReels + nStories) : 0
+  const extraScripts = Math.max(0, totalScripts - includedScripts)
 
   // Recalcula o mix sugerido sempre que período ou ppw mudam (a não ser que o usuário tenha mexido)
   useEffect(() => {
@@ -531,6 +544,13 @@ function PlannerForm({ workspace, brand, credits, onGenerated, navigate }: { wor
     setNPost(post); setNCar(car); setNSt(st)
   }, [period, ppw, targetTotal, touched])
 
+  // Sugestão automática de roteiros: 2 reels/semana + 4 stories/semana (a não ser que o usuário mexa)
+  useEffect(() => {
+    if (scriptsTouched) return
+    setNReels(weeks * 2)
+    setNStories(weeks * 4)
+  }, [weeks, scriptsTouched])
+
   // Helper: marca como tocado ao mexer manualmente
   const setMix = (setter: (n:number)=>void) => (n:number) => { setTouched(true); setter(n) }
 
@@ -540,10 +560,26 @@ function PlannerForm({ workspace, brand, credits, onGenerated, navigate }: { wor
 
   const generate = async () => {
     if (!user || total===0) return
+    // Verifica créditos para roteiros extras (excedente da cota do plano)
+    if (extraScripts > 0 && credits < extraScripts) {
+      setError(`Você precisa de ${extraScripts} crédito(s) para os roteiros extras, mas tem ${credits}. Reduza a quantidade ou faça upgrade.`)
+      return
+    }
     setLoading(true); setError(null)
     try {
       const start=new Date(startDate), end=new Date(start)
       end.setDate(end.getDate()+PERIOD_DAYS[period]-1)
+
+      // Debita os roteiros extras (acima do incluso no plano)
+      if (extraScripts > 0) {
+        const { data: ok } = await supabase.rpc('debit_credits', {
+          p_workspace_id: workspace.id,
+          p_job_id: null,
+          p_amount: extraScripts,
+          p_description: `${extraScripts} roteiro(s) extra de campanha`,
+        })
+        if (ok === false) { setError('Não foi possível debitar os créditos dos roteiros extras.'); setLoading(false); return }
+      }
       const { data: camp, error: e } = await supabase.from('content_campaigns').insert({
         workspace_id:workspace.id, brand_id:brand.id, created_by:user.id,
         title: theme || `Cronograma ${period} — ${start.toLocaleDateString('pt-BR')}`,
@@ -575,6 +611,7 @@ VOCÊ decide a quantidade certa de cada conteúdo com base na DURAÇÃO. Não us
 
 A aiin PRODUZ os estáticos. Para cada item estático, gere: title, objective, context (briefing pra IA criar a arte).
 
+${(reelsCount + storiesCount) === 0 ? 'NÃO gere roteiros de reels nem stories nesta campanha (client_suggestions vazio).' : ''}
 Os REELS e STORIES são SUGESTÕES para o CLIENTE gravar/fazer (a aiin não grava vídeo). Entregue um ROTEIRO DE PRODUÇÃO PROFISSIONAL, o mais MASTIGADO possível — o cliente pega e grava sem precisar pensar. Para cada REELS, detalhe:
 - title: nome do reels
 - duration: duração total (ex: 35s)
@@ -719,6 +756,42 @@ Retorne SOMENTE JSON (sem markdown):
           <span style={{ fontSize:11,color:'#9CA3AF' }}>{total} posts · {estCr} créditos est.</span>
           {credits<estCr&&<span style={{ fontSize:11,color:'#E24B4A',fontWeight:600 }}>⚠ {credits} disponíveis</span>}
         </div>
+      </div>
+
+      {/* ── Roteiros para gravação de vídeos (Reels + Stories) ── */}
+      <div style={{ background:'#fff',border:'1px solid rgba(7,13,31,.08)',borderRadius:14,padding:'14px 16px',marginTop:12 }}>
+        <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom: wantScripts?12:0 }}>
+          <div>
+            <div style={{ fontSize:12,fontWeight:600,color:'#070D1F' }}>🎬 Roteiros para gravação</div>
+            <div style={{ fontSize:10,color:'#9CA3AF' }}>Reels e Stories prontos pra você gravar</div>
+          </div>
+          <button onClick={()=>setWantScripts(v=>!v)} style={{ width:42,height:24,borderRadius:99,border:'none',cursor:'pointer',background:wantScripts?'linear-gradient(135deg,#FF6A00,#F72585,#7B2CFF)':'#D1D5DB',position:'relative',transition:'background .2s',flexShrink:0 }}>
+            <span style={{ position:'absolute',top:2,left:wantScripts?20:2,width:20,height:20,borderRadius:'50%',background:'#fff',transition:'left .2s',boxShadow:'0 1px 3px rgba(0,0,0,.2)' }} />
+          </button>
+        </div>
+
+        {wantScripts && (
+          <>
+            {[
+              {label:'Reels (roteiro)',  color:'#185FA5',bg:'rgba(24,95,165,.1)', val:nReels,  set:(v:number)=>{setScriptsTouched(true);setNReels(v)}},
+              {label:'Stories (roteiro)',color:'#7B2CFF',bg:'rgba(123,44,255,.1)',val:nStories,set:(v:number)=>{setScriptsTouched(true);setNStories(v)}},
+            ].map(row=>(
+              <div key={row.label} style={{ display:'flex',alignItems:'center',marginBottom:10 }}>
+                <div style={{ width:30,height:30,borderRadius:8,background:row.bg,display:'flex',alignItems:'center',justifyContent:'center',color:row.color,marginRight:10,flexShrink:0,fontSize:14 }}>▶</div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:12,fontWeight:500,color:'#070D1F' }}>{row.label}</div>
+                </div>
+                <C val={row.val} set={row.set} color={row.color} />
+              </div>
+            ))}
+            <div style={{ borderTop:'1px solid rgba(7,13,31,.07)',paddingTop:10,fontSize:11,color:'#9CA3AF',lineHeight:1.5 }}>
+              <div>{includedScripts} roteiro{includedScripts!==1?'s':''} incluso{includedScripts!==1?'s':''} no seu plano ({scriptsPerWeek}/semana · {weeks} sem.)</div>
+              {extraScripts>0
+                ? <div style={{ color:'#FF6A00',fontWeight:600,marginTop:2 }}>+{extraScripts} extra{extraScripts!==1?'s':''} · {extraScripts} crédito{extraScripts!==1?'s':''}</div>
+                : <div style={{ color:'#1D9E75',fontWeight:600,marginTop:2 }}>✓ dentro do incluso</div>}
+            </div>
+          </>
+        )}
       </div>
 
       {error&&<div style={{ padding:'8px 12px',background:'#FCEBEB',border:'1px solid rgba(226,75,74,.2)',borderRadius:8,fontSize:12,color:'#E24B4A' }}>{error}</div>}

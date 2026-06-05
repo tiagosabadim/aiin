@@ -52,7 +52,7 @@ export function useWorkspace() {
 
     const [{ data: brand }, { data: sub }] = await Promise.all([
       supabase.from('brand_profiles').select('*').eq('workspace_id', ws.id).limit(1).maybeSingle(),
-      supabase.from('subscriptions').select('*').eq('workspace_id', ws.id).eq('status', 'active').limit(1).maybeSingle(),
+      supabase.from('subscriptions').select('*, plan:plans(*)').eq('workspace_id', ws.id).eq('status', 'active').limit(1).maybeSingle(),
     ])
 
     const credits = (sub?.monthly_credits_available ?? 0) + (sub?.extra_credits_available ?? 0)
