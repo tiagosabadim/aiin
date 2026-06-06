@@ -614,7 +614,7 @@ VOCÊ decide a quantidade certa de cada conteúdo com base na DURAÇÃO. Não us
 
 A aiin PRODUZ os estáticos. Para cada item estático, gere: title, objective, context (briefing pra IA criar a arte).
 
-${(reelsCount + storiesCount) === 0 ? 'NÃO gere roteiros de reels nem stories nesta campanha (client_suggestions vazio).' : ''}
+${(reelsCount + storiesCount) === 0 ? 'NÃO gere roteiros de reels nem stories nesta campanha (client_suggestions vazio).' : `⚠️ QUANTIDADE EXATA E OBRIGATÓRIA: gere precisamente ${reelsCount} reels e ${storiesCount} stories no client_suggestions. NEM MAIS, NEM MENOS.`}
 Os REELS e STORIES são SUGESTÕES para o CLIENTE gravar/fazer (a aiin não grava vídeo). Entregue um ROTEIRO DE PRODUÇÃO PROFISSIONAL, o mais MASTIGADO possível — o cliente pega e grava sem precisar pensar. Para cada REELS, detalhe:
 - title: nome do reels
 - duration: duração total (ex: 35s)
@@ -674,8 +674,14 @@ Retorne SOMENTE JSON (sem markdown):
       }
       // Salva as sugestões de conteúdo para o cliente gravar (reels + rotina de stories)
       if (parsed.client_suggestions) {
+        // Garante que respeita EXATAMENTE a quantidade pedida (a IA às vezes gera a mais).
+        const cs = parsed.client_suggestions
+        const trimmed = {
+          reels: Array.isArray(cs.reels) ? cs.reels.slice(0, reelsCount) : [],
+          stories: Array.isArray(cs.stories) ? cs.stories.slice(0, storiesCount) : [],
+        }
         await supabase.from('content_campaigns')
-          .update({ client_suggestions: parsed.client_suggestions })
+          .update({ client_suggestions: trimmed })
           .eq('id', camp.id)
       }
       await supabase.from('campaign_items').insert(parsed.items.map((it:any,idx:number)=>({
