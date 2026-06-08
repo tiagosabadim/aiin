@@ -12,7 +12,7 @@ const NAV = [
   { id: 'settings'  as Route, label: 'Configurações',  icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
 ]
 
-const BOTTOM_NAV: Route[] = ['dashboard', 'briefing', 'campaigns', 'posts', 'settings']
+const BOTTOM_NAV: Route[] = ['dashboard', 'posts', 'criar', 'schedule', 'settings']
 
 interface Props {
   route: Route; navigate: (r: string) => void
@@ -130,15 +130,16 @@ export function AppLayout({ route, navigate, credits, pendingCount, children }: 
         <nav className="bottom-nav">
           <div className="bottom-nav-items">
             {BOTTOM_NAV.map(id => {
-              const item = NAV.find(n => n.id === id)!
-              if (id === 'briefing') return (
+              const item = NAV.find(n => n.id === id)
+              if (!item) return null
+              if (id === 'criar') return (
                 <button key={id} className="bottom-nav-cta" onClick={() => navigate(id)}>✦</button>
               )
               const badge = id === 'posts' ? pendingCount : 0
               return (
                 <button key={id} className={`bottom-nav-item ${route === id ? 'active' : ''}`} onClick={() => navigate(id)}>
                   <div className="bottom-nav-icon" style={{ position: 'relative' }}>
-                    {id === 'dashboard' ? '⊞' : id === 'campaigns' ? '📅' : id === 'posts' ? '✓' : '⚙'}
+                    {id === 'dashboard' ? '⊞' : id === 'schedule' ? '📅' : id === 'posts' ? '✓' : '⚙'}
                     {badge > 0 && (
                       <span style={{ position: 'absolute', top: -4, right: -4, width: 14, height: 14, borderRadius: '50%', background: 'var(--pink)', color: 'white', fontSize: 8, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         {badge > 9 ? '9+' : badge}
