@@ -11,6 +11,7 @@ interface Props {
   workspace: Workspace; brand: BrandProfile
   subscription: Subscription | null; credits: number
   navigate: (r: string) => void
+  initialFormat?: string
 }
 
 const FORMATS = [
@@ -60,9 +61,9 @@ const FORMATS = [
   },
 ]
 
-export function BriefingPage({ workspace, brand, subscription, credits, navigate }: Props) {
+export function BriefingPage({ workspace, brand, subscription, credits, navigate, initialFormat }: Props) {
   const { user } = useAuth()
-  const [selected, setSelected] = useState<typeof FORMATS[0] | null>(null)
+  const [selected, setSelected] = useState<typeof FORMATS[0] | null>(() => initialFormat ? (FORMATS.find(f => f.id === initialFormat) ?? null) : null)
   const [loading, setLoading]   = useState(false)
   const [success, setSuccess]   = useState(false)
   const [error, setError]       = useState<string | null>(null)

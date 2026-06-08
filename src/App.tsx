@@ -9,6 +9,7 @@ import { Loader } from './components/Loader'
 import { AppLayout } from './layouts/AppLayout'
 import { DashboardPage } from './pages/DashboardPage'
 import { BriefingPage } from './pages/BriefingPage'
+import { CreateHubPage } from './pages/CreateHubPage'
 import { PostsPage } from './pages/PostsPage'
 import { SchedulePage } from './pages/SchedulePage'
 import { InsightsPage, DesignSystemPage, SettingsPage } from './pages/OtherPages'
@@ -16,12 +17,12 @@ import { CampaignsPage } from './pages/CampaignsPage'
 import { AdminPage } from './pages/AdminPage'
 import './index.css'
 
-export type Route = 'dashboard' | 'briefing' | 'campaigns' | 'posts' | 'schedule' | 'insights' | 'design' | 'settings'
+export type Route = 'criar' | 'dashboard' | 'briefing' | 'campaigns' | 'posts' | 'schedule' | 'insights' | 'design' | 'settings'
 
 export default function App() {
   const { user, loading: authLoading } = useAuth()
   const { workspace, brand, subscription, credits, loading: wsLoading, refetch } = useWorkspace()
-  const [route, setRoute] = useState<Route>('dashboard')
+  const [route, setRoute] = useState<Route>('criar')
   const [onboardingStep, setOnboardingStep] = useState<number | null>(null)
   const [showLogin, setShowLogin] = useState(false)
 
@@ -76,6 +77,9 @@ export default function App() {
     <>
       {needsPaywall && <PaywallModal workspaceId={workspace.id} userEmail={user.email} />}
     <AppLayout route={route} navigate={navigate} credits={credits} pendingCount={0}>
+      {route === 'criar' && (
+        <CreateHubPage workspace={workspace} brand={brand} subscription={subscription} credits={credits} navigate={navigate} />
+      )}
       {route === 'dashboard'  && <DashboardPage {...ctx} />}
       {route === 'briefing' && (
         <div style={{ display:'flex', flexDirection:'column', flex:1, minHeight:0, overflow:'hidden' }}>
