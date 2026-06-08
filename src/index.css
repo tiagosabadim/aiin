@@ -915,3 +915,43 @@ select.input { cursor: pointer; }
   .create-tips-loader { margin-bottom: 24px; }
   .create-tips-card { max-width: 100%; }
 }
+
+/* ── Painel: estado de prévia pronta ── */
+.create-tips--result { justify-content: flex-start; padding: 28px 28px; overflow-y: auto; }
+.create-result-badge {
+  font-size: 13px; font-weight: 700; color: #6EE7B7;
+  background: rgba(29,158,117,.18); border: 1px solid rgba(29,158,117,.35);
+  padding: 5px 14px; border-radius: 99px; margin-bottom: 18px;
+}
+.create-result-preview {
+  width: 100%; max-width: 320px;
+  border-radius: 16px; overflow: hidden;
+  box-shadow: 0 16px 48px rgba(0,0,0,.4);
+  margin-bottom: 22px;
+}
+.create-result-preview img { width: 100%; height: auto; display: block; }
+.create-result-actions {
+  display: flex; flex-direction: column; gap: 10px;
+  width: 100%; max-width: 320px;
+}
+.create-result-btn {
+  width: 100%; height: 46px; border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.15);
+  background: rgba(255,255,255,.06); color: #fff;
+  font-size: 14px; font-weight: 600; font-family: inherit;
+  cursor: pointer; transition: all .15s;
+}
+.create-result-btn:hover:not(:disabled) { background: rgba(255,255,255,.12); }
+.create-result-btn:disabled { opacity: .5; cursor: not-allowed; }
+.create-result-btn.primary {
+  background: linear-gradient(135deg,#FF6A00,#F72585,#7B2CFF);
+  border: none; box-shadow: 0 6px 20px rgba(247,37,133,.4);
+}
+.create-result-btn.danger { color: #FFB4B4; border-color: rgba(226,75,74,.3); }
+.create-result-btn.danger:hover:not(:disabled) { background: rgba(226,75,74,.15); }
+.create-result-link {
+  margin-top: 18px; background: none; border: none;
+  color: rgba(255,255,255,.6); font-size: 13px; font-family: inherit;
+  cursor: pointer; text-decoration: underline;
+}
+.create-result-link:hover { color: #fff; }

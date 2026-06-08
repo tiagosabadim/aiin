@@ -1,6 +1,6 @@
 // aiin · Avulsos (BriefingPage v7)
 // Split: esquerda escolhe formato, direita mostra form do produto
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { createContentJob } from '../lib/api'
 import type { Workspace, BrandProfile, Subscription, ContentType } from '../types/database'
@@ -67,6 +67,8 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
   const [selected, setSelected] = useState<typeof FORMATS[0] | null>(() => initialFormat ? (FORMATS.find(f => f.id === initialFormat) ?? null) : null)
   const [loading, setLoading]   = useState(false)
   const [success, setSuccess]   = useState(false)
+  const [genJobId, setGenJobId] = useState<string | null>(null)   // job em geração
+  const [result, setResult]     = useState<any | null>(null)       // output pronto (prévia)
   const [error, setError]       = useState<string | null>(null)
 
   // Campos do form
@@ -149,14 +151,40 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
         },
       })
 
-      setSuccess(true)
-      setTimeout(() => navigate('posts'), 1800)
+      // Fica na tela: guarda o job e faz polling até a imagem ficar pronta
+      setGenJobId(job.id)
+      // loading continua true até a prévia aparecer (controlado pelo polling)
     } catch (e: any) {
       setError(e.message ?? 'Erro ao criar post')
-    } finally {
       setLoading(false)
     }
   }
+
+  // Polling: espera o output ficar pronto e mostra a prévia ali mesmo
+  useEffect(() => {
+    if (!genJobId) return
+    let stop = false
+    const poll = setInterval(async () => {
+      const { data } = await supabase
+        .from('creative_outputs')
+        .select('*')
+        .eq('job_id', genJobId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (!stop && data && data.public_url) {
+        clearInterval(poll)
+        setResult(data)
+        setLoading(false)
+      }
+    }, 3000)
+    // Timeout de segurança: 90s
+    const timeout = setTimeout(() => {
+      clearInterval(poll)
+      if (!stop && !result) { setLoading(false); navigate('posts') }
+    }, 90000)
+    return () => { stop = true; clearInterval(poll); clearTimeout(timeout) }
+  }, [genJobId])
 
   const creditCost = selected ? (CREDIT_COSTS[selected.id] ?? 1) : 0
   // Campo essencial preenchido? (reels usa título do vídeo; demais usam título/tema)
@@ -374,7 +402,16 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
       </div>
 
       {/* ── Metade direita: painel de dicas (só no modo hub) ── */}
-      {initialFormat && <CreateTipsPanel active={loading} />}
+      {initialFormat && (
+        <CreateTipsPanel
+          active={loading}
+          result={result}
+          userId={user.id}
+          onApprove={() => navigate('posts')}
+          onReset={() => { setResult(null); setGenJobId(null); setSuccess(false) }}
+          onGoToPosts={() => navigate('posts')}
+        />
+      )}
     </div>
   )
 }
