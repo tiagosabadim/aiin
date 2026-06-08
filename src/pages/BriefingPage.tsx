@@ -159,7 +159,9 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
   }
 
   const creditCost = selected ? (CREDIT_COSTS[selected.id] ?? 1) : 0
-  const canSubmit  = !!selected && !loading && credits >= creditCost
+  // Campo essencial preenchido? (reels usa título do vídeo; demais usam título/tema)
+  const hasEssential = selected?.id === 'capa_reels' ? videoTitle.trim().length > 0 : title.trim().length > 0
+  const canSubmit  = !!selected && !loading && credits >= creditCost && hasEssential
 
   return (
     <div className={initialFormat ? "page-create-split" : "page-split"}>
@@ -243,8 +245,8 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
               </div>
             </div>
 
-            {/* Form */}
-            <div style={{ padding: '16px 20px 120px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {/* Form (padding-bottom generoso para o conteúdo nunca ficar atrás do botão fixo) */}
+            <div style={{ padding: '16px 20px 160px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
               {/* Título do post */}
               <F label="Título / tema do post" required>
@@ -347,7 +349,7 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
             </div>
 
             {/* Botão flutuante fixo */}
-            <div style={{ position: 'absolute', bottom: 0, right: 0, left: '40%', background: 'linear-gradient(transparent, #fff 35%)', padding: '20px 20px 28px', pointerEvents: 'none' }}>
+            <div style={{ position: 'absolute', bottom: 0, right: 0, left: 0, background: 'linear-gradient(transparent, #fff 40%)', padding: '24px 20px 24px', pointerEvents: 'none' }}>
               <div style={{ pointerEvents: 'all' }}>
                 {error && (
                   <div style={{ marginBottom: 10, padding: '8px 14px', background: '#FCEBEB', border: '1px solid rgba(226,75,74,.2)', borderRadius: 8, fontSize: 12, color: '#E24B4A' }}>{error}</div>
@@ -359,8 +361,10 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
                 )}
                 <button onClick={submit} disabled={!canSubmit} style={{ width: '100%', height: 52, background: canSubmit ? 'linear-gradient(135deg,#FF6A00,#F72585,#7B2CFF)' : '#e5e7eb', border: 'none', borderRadius: 14, color: canSubmit ? 'white' : '#9CA3AF', fontSize: 15, fontWeight: 700, fontFamily: 'inherit', cursor: canSubmit ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, boxShadow: canSubmit ? '0 4px 20px rgba(247,37,133,.3)' : 'none', transition: 'all .2s' }}>
                   {loading
-                    ? <><div style={{ width: 16, height: 16, border: '2.5px solid rgba(255,255,255,.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 1s linear infinite' }} /> Gerando post...</>
-                    : <><span style={{ fontSize: 18 }}>✦</span> Gerar {selected.label} · {creditCost} crédito{creditCost > 1 ? 's' : ''}</>
+                    ? <><div style={{ width: 16, height: 16, border: '2.5px solid rgba(255,255,255,.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 1s linear infinite' }} /> A aiin está criando...</>
+                    : !hasEssential
+                      ? <>Preencha o título para continuar</>
+                      : <><span style={{ fontSize: 18 }}>✦</span> Gerar {selected.label} · {creditCost} crédito{creditCost > 1 ? 's' : ''}</>
                   }
                 </button>
               </div>
