@@ -6,6 +6,7 @@ import { createContentJob } from '../lib/api'
 import type { Workspace, BrandProfile, Subscription, ContentType } from '../types/database'
 import { CREDIT_COSTS } from '../types/database'
 import { useAuth } from '../hooks/useAuth'
+import { CreateTipsPanel } from '../components/CreateTipsPanel'
 
 interface Props {
   workspace: Workspace; brand: BrandProfile
@@ -161,7 +162,7 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
   const canSubmit  = !!selected && !loading && credits >= creditCost
 
   return (
-    <div className={initialFormat ? "page-create-focused" : "page-split"}>
+    <div className={initialFormat ? "page-create-split" : "page-split"}>
 
       {/* ── ESQUERDA: seleção de formato (escondida quando vem do hub) ── */}
       {!initialFormat && (
@@ -215,8 +216,8 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
       </div>
       )}
 
-      {/* ── DIREITA: form do produto ── */}
-      <div className={initialFormat ? "page-create-form" : "page-split-right"}>
+      {/* ── Coluna do formulário (metade esquerda no modo hub) ── */}
+      <div className={initialFormat ? "page-create-formcol" : "page-split-right"}>
         {!selected ? (
           <div className="empty-state">
             <div className="empty-state-icon">✦</div>
@@ -367,6 +368,9 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
           </>
         )}
       </div>
+
+      {/* ── Metade direita: painel de dicas (só no modo hub) ── */}
+      {initialFormat && <CreateTipsPanel active={loading} />}
     </div>
   )
 }
