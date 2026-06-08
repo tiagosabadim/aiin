@@ -406,7 +406,7 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
         <CreateTipsPanel
           active={loading}
           result={result}
-          userId={user.id}
+          userId={user?.id ?? ''}
           onApprove={() => navigate('posts')}
           onReset={() => { setResult(null); setGenJobId(null); setSuccess(false) }}
           onGoToPosts={() => navigate('posts')}
