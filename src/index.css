@@ -790,14 +790,27 @@ select.input { cursor: pointer; }
   flex: 1 1 50%;
   min-width: 0;
   height: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;            /* a coluna NÃO rola */
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r16);
   display: flex;
   flex-direction: column;
   position: relative;
+}
+/* Área de campos: ESSA rola, entre o header e o botão fixos */
+.create-form-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+/* Botão fixo no rodapé da coluna */
+.create-form-footer {
+  flex-shrink: 0;
+  border-top: 1px solid rgba(7,13,31,.06);
+  background: var(--surface);
+  padding: 16px 20px;
 }
 /* Metade direita: painel de dicas */
 .create-tips {
@@ -889,6 +902,10 @@ select.input { cursor: pointer; }
     height: auto;
     overflow: visible;
   }
+  /* No mobile a página inteira rola: a área de campos não tem scroll próprio,
+     e o botão acompanha o conteúdo (não fixo) para não cobrir nada. */
+  .create-form-scroll { overflow: visible; min-height: 0; }
+  .create-form-footer { position: static; }
   .create-tips {
     flex: none;
     width: 100%;

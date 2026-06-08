@@ -245,8 +245,8 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
               </div>
             </div>
 
-            {/* Form (padding-bottom generoso para o conteúdo nunca ficar atrás do botão fixo) */}
-            <div style={{ padding: '16px 20px 160px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {/* Área de campos: rola entre o header e o botão (ambos fixos) */}
+            <div className="create-form-scroll" style={{ padding: '16px 20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
               {/* Título do post */}
               <F label="Título / tema do post" required>
@@ -348,9 +348,9 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
 
             </div>
 
-            {/* Botão flutuante fixo */}
-            <div style={{ position: 'absolute', bottom: 0, right: 0, left: 0, background: 'linear-gradient(transparent, #fff 40%)', padding: '24px 20px 24px', pointerEvents: 'none' }}>
-              <div style={{ pointerEvents: 'all' }}>
+            {/* Botão fixo no rodapé da coluna */}
+            <div className="create-form-footer">
+              <div>
                 {error && (
                   <div style={{ marginBottom: 10, padding: '8px 14px', background: '#FCEBEB', border: '1px solid rgba(226,75,74,.2)', borderRadius: 8, fontSize: 12, color: '#E24B4A' }}>{error}</div>
                 )}
