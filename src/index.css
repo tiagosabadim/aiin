@@ -770,3 +770,20 @@ select.input { cursor: pointer; }
   .create-card-icon { width: 40px; height: 40px; font-size: 18px; }
   .create-card-label { font-size: 14px; }
 }
+
+/* ── Criação focada (vinda do hub) — tela limpa, só o formulário ── */
+.page-create-focused {
+  display: flex;
+  justify-content: center;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.page-create-form {
+  width: 100%;
+  max-width: 620px;
+  padding: 24px 28px 40px;
+}
+@media (max-width: 640px) {
+  .page-create-form { padding: 16px 16px 32px; }
+}

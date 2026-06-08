@@ -161,9 +161,10 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
   const canSubmit  = !!selected && !loading && credits >= creditCost
 
   return (
-    <div className="page-split">
+    <div className={initialFormat ? "page-create-focused" : "page-split"}>
 
-      {/* ── ESQUERDA: seleção de formato ── */}
+      {/* ── ESQUERDA: seleção de formato (escondida quando vem do hub) ── */}
+      {!initialFormat && (
       <div className="page-split-left" style={{ gap: 0, padding: 0 }}>
 
         <div style={{ padding: '20px 24px 14px', borderBottom: '1px solid rgba(7,13,31,.07)' }}>
@@ -212,9 +213,10 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
           </div>
         )}
       </div>
+      )}
 
       {/* ── DIREITA: form do produto ── */}
-      <div className="page-split-right">
+      <div className={initialFormat ? "page-create-form" : "page-split-right"}>
         {!selected ? (
           <div className="empty-state">
             <div className="empty-state-icon">✦</div>
