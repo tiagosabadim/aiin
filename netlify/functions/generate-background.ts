@@ -103,7 +103,9 @@ export const handler = async (event: any) => {
     ].filter(Boolean).join('\n') || extra_context
 
     // Garante contexto visual da marca (logo + referências)
-    const brandContextId = await ensureBrandContext(mergedBrand)
+    // Contexto visual (logo/refs) só importa para IMAGEM. No texto, pula (lento).
+    console.log(`[generate] job=${job_id} text_only=${text_only} edited=${!!edited_content}`)
+    const brandContextId = text_only ? null : await ensureBrandContext(mergedBrand)
 
     // Processa cada post da quantidade solicitada
     for (let i = 0; i < (quantity ?? 1); i++) {
