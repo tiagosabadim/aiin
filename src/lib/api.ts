@@ -127,6 +127,75 @@ export async function createContentJob(params: {
   return job
 }
 
+// ---- Revisão de texto antes da imagem (2 etapas) ----
+
+// Etapa 1: cria o job e gera SÓ o texto (não debita crédito ainda).
+export async function generateTextDraft(params: {
+  workspaceId: string; briefId: string; brandId: string
+  jobType: ContentType; quantity: number; inputPayload: Record<string, unknown>
+}) {
+  const { workspaceId, briefId, brandId, jobType, quantity, inputPayload } = params
+  const requiredCredits = (CREDIT_COSTS[jobType] ?? 1) * (quantity ?? 1)
+
+  // Verifica saldo (mas NÃO debita ainda — só na etapa da imagem)
+  const available = await getAvailableCredits(workspaceId)
+  if (available < requiredCredits) {
+    throw new Error(`Créditos insuficientes. Necessário: ${requiredCredits}, disponível: ${available}`)
+  }
+
+  const { data: job, error: jobErr } = await supabase
+    .from('content_jobs')
+    .insert({
+      workspace_id: workspaceId, brief_id: briefId, brand_id: brandId,
+      job_type: jobType, status: 'pending', required_credits: requiredCredits,
+      input_payload: inputPayload, idempotency_key: `${briefId}-${Date.now()}`,
+    })
+    .select().single()
+  if (jobErr) throw jobErr
+
+  const apiBase = import.meta.env.VITE_API_BASE ?? ''
+  await fetch(`${apiBase}/api/generate-background`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      job_id: job.id, brief_id: briefId, brand_id: brandId,
+      workspace_id: workspaceId, job_type: jobType, quantity,
+      required_credits: requiredCredits, ...inputPayload,
+      text_only: true,   // gera só o texto e para
+    }),
+  })
+  return job
+}
+
+// Etapa 2: com o texto revisado, debita o crédito e gera as imagens.
+export async function generateImagesFromDraft(params: {
+  jobId: string; workspaceId: string; briefId: string; brandId: string
+  jobType: ContentType; quantity: number; editedContent: any; inputPayload: Record<string, unknown>
+}) {
+  const { jobId, workspaceId, briefId, brandId, jobType, quantity, editedContent, inputPayload } = params
+  const requiredCredits = (CREDIT_COSTS[jobType] ?? 1) * (quantity ?? 1)
+
+  // Debita o crédito AGORA (a imagem é a parte cara)
+  const { data: debited } = await supabase.rpc('debit_credits', {
+    p_workspace_id: workspaceId, p_job_id: jobId,
+    p_amount: requiredCredits, p_description: `Geração: ${jobType} × ${quantity}`,
+  })
+  if (!debited) throw new Error('Créditos insuficientes para gerar as imagens.')
+
+  await supabase.from('content_jobs')
+    .update({ credits_debited: true, status: 'processing' }).eq('id', jobId)
+
+  const apiBase = import.meta.env.VITE_API_BASE ?? ''
+  await fetch(`${apiBase}/api/generate-background`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      job_id: jobId, brief_id: briefId, brand_id: brandId,
+      workspace_id: workspaceId, job_type: jobType, quantity,
+      required_credits: requiredCredits, ...inputPayload,
+      edited_content: editedContent,   // texto já revisado
+    }),
+  })
+}
+
 // ---- Aprovação ----
 export async function approveOutput(outputId: string, userId: string) {
   await supabase.from('creative_outputs').update({ status: 'approved' }).eq('id', outputId)

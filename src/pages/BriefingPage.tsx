@@ -2,7 +2,7 @@
 // Split: esquerda escolhe formato, direita mostra form do produto
 import { useState, useRef, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { createContentJob } from '../lib/api'
+import { createContentJob, generateTextDraft, generateImagesFromDraft } from '../lib/api'
 import type { Workspace, BrandProfile, Subscription, ContentType } from '../types/database'
 import { CREDIT_COSTS } from '../types/database'
 import { useAuth } from '../hooks/useAuth'
@@ -69,6 +69,10 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
   const [success, setSuccess]   = useState(false)
   const [genJobId, setGenJobId] = useState<string | null>(null)   // job em geração
   const [result, setResult]     = useState<any | null>(null)       // output pronto (prévia)
+  const [draft, setDraft]       = useState<any | null>(null)       // texto gerado para revisão
+  const [draftJobId, setDraftJobId] = useState<string | null>(null)
+  const [genCtx, setGenCtx]     = useState<any | null>(null)       // brief+payload guardados p/ etapa 2
+  const [textLoading, setTextLoading] = useState(false)            // gerando o texto
   const [error, setError]       = useState<string | null>(null)
 
   // Campos do form
@@ -133,32 +137,71 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
 
       if (brief.error) throw brief.error
 
-      const job = await createContentJob({
+      const payload = {
+        title: title || selected.label,
+        objective, tone_of_voice: brand.tone_of_voice,
+        slide_count: selected.id === 'carrossel_5' ? slideCount : undefined,
+        extra_context: parts.join('\n'),
+        hashtags: hashtags.split(',').map(h => h.trim()).filter(Boolean),
+        reference_urls: refUrls,
+        brand_name: brand.name, segment: brand.segment,
+        target_audience: brand.target_audience, products: brand.products,
+        color_palette: brand.color_palette, slogans: brand.slogans,
+        design_rules: brand.design_rules, forbidden_words: brand.forbidden_words,
+        brand_dna: brand.ai_brand_dna, logo_urls: brand.logo_urls,
+        quantity: 1, content_type: selected.id,
+        scheduled_date: scheduleDate || undefined,
+        text_alignment: { horizontal: hAlign, vertical: vAlign },
+      }
+
+      // ETAPA 1: gera só o texto (sem debitar crédito ainda)
+      const job = await generateTextDraft({
         workspaceId: workspace.id, briefId: brief.data.id,
-        brandId: brand.id, jobType: selected.id, quantity: 1,
-        inputPayload: {
-          title: title || selected.label,
-          objective, tone_of_voice: brand.tone_of_voice,
-          slide_count: selected.id === 'carrossel_5' ? slideCount : undefined,
-          extra_context: parts.join('\n'),
-          hashtags: hashtags.split(',').map(h => h.trim()).filter(Boolean),
-          reference_urls: refUrls,
-          brand_name: brand.name, segment: brand.segment,
-          target_audience: brand.target_audience, products: brand.products,
-          color_palette: brand.color_palette, slogans: brand.slogans,
-          design_rules: brand.design_rules, forbidden_words: brand.forbidden_words,
-          brand_dna: brand.ai_brand_dna, logo_urls: brand.logo_urls,
-          quantity: 1, content_type: selected.id,
-          scheduled_date: scheduleDate || undefined,
-          text_alignment: { horizontal: hAlign, vertical: vAlign },
-        },
+        brandId: brand.id, jobType: selected.id, quantity: 1, inputPayload: payload,
       })
 
-      // Fica na tela: guarda o job e faz polling até a imagem ficar pronta
-      setGenJobId(job.id)
-      // loading continua true até a prévia aparecer (controlado pelo polling)
+      setGenCtx({ jobId: job.id, briefId: brief.data.id, payload })
+      setDraftJobId(job.id)   // dispara o polling do texto
+      setTextLoading(true)
+      setLoading(false)
     } catch (e: any) {
       setError(e.message ?? 'Erro ao criar post')
+      setLoading(false)
+    }
+  }
+
+  // Polling do TEXTO (etapa 1): espera o draft_content ficar pronto
+  useEffect(() => {
+    if (!draftJobId) return
+    let stop = false
+    const poll = setInterval(async () => {
+      const { data } = await supabase
+        .from('content_jobs').select('draft_content, status')
+        .eq('id', draftJobId).maybeSingle()
+      if (!stop && data && data.draft_content) {
+        clearInterval(poll)
+        setDraft(data.draft_content)
+        setTextLoading(false)
+      }
+    }, 2500)
+    const timeout = setTimeout(() => { clearInterval(poll); if (!stop) setTextLoading(false) }, 60000)
+    return () => { stop = true; clearInterval(poll); clearTimeout(timeout) }
+  }, [draftJobId])
+
+  // Confirma o texto (editado) e gera as imagens (etapa 2)
+  const confirmAndGenerate = async (editedContent: any) => {
+    if (!genCtx || !selected) return
+    setDraft(null)
+    setLoading(true)   // agora sim o loading com dicas (geração de imagem)
+    try {
+      await generateImagesFromDraft({
+        jobId: genCtx.jobId, workspaceId: workspace.id, briefId: genCtx.briefId,
+        brandId: brand.id, jobType: selected.id, quantity: 1,
+        editedContent, inputPayload: genCtx.payload,
+      })
+      setGenJobId(genCtx.jobId)   // dispara polling da imagem
+    } catch (e: any) {
+      setError(e.message ?? 'Erro ao gerar imagens')
       setLoading(false)
     }
   }
@@ -441,10 +484,13 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
       {initialFormat && (
         <CreateTipsPanel
           active={loading}
+          textLoading={textLoading}
+          draft={draft}
           result={result}
           userId={user?.id ?? ''}
+          onConfirmText={confirmAndGenerate}
           onApprove={() => navigate('posts')}
-          onReset={() => { setResult(null); setGenJobId(null); setSuccess(false) }}
+          onReset={() => { setResult(null); setGenJobId(null); setDraft(null); setDraftJobId(null); setGenCtx(null); setSuccess(false) }}
           onGoToPosts={() => navigate('posts')}
         />
       )}
