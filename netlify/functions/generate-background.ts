@@ -207,6 +207,10 @@ export const handler = async (event: any) => {
 
       } catch (postErr: any) {
         console.error(`Erro no post ${i+1}:`, postErr.message)
+        await supabase.from('content_jobs')
+          .update({ status: 'error', error_message: postErr.message?.slice(0, 500) ?? 'erro ao gerar' })
+          .eq('id', job_id)
+        return { statusCode: 500, body: JSON.stringify({ error: postErr.message }) }
       }
     }
 

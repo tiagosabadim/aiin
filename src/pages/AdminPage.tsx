@@ -347,6 +347,13 @@ export function AdminPage() {
     !search || ws.name.toLowerCase().includes(search.toLowerCase())
   )
 
+  // ALERTA CRÍTICO: falhas por quota/billing da OpenAI (ferramenta para de gerar)
+  const quotaFailures = jobs.filter(j =>
+    j.status === 'error' && j.error_message &&
+    /quota|billing|exceeded|insufficient_quota|rate limit/i.test(j.error_message)
+  )
+  const lastQuotaFail = quotaFailures[0]   // jobs já vêm ordenados por data desc
+
   return (
     <div style={{ minHeight: '100vh', background: '#0a0a0f', color: '#e2e8f0', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
 
@@ -354,6 +361,26 @@ export function AdminPage() {
       {toast && (
         <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, background: '#10b981', color: 'white', padding: '10px 18px', borderRadius: 10, fontSize: 13, fontWeight: 500, boxShadow: '0 8px 24px rgba(0,0,0,.4)' }}>
           {toast}
+        </div>
+      )}
+
+      {/* ALERTA CRÍTICO: OpenAI sem quota — o time precisa agir rápido */}
+      {quotaFailures.length > 0 && (
+        <div style={{ background: 'linear-gradient(90deg,#7f1d1d,#991b1b)', borderBottom: '2px solid #ef4444', padding: '14px 24px', display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ fontSize: 24 }}>🚨</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>
+              OpenAI sem saldo — a geração está FALHANDO ({quotaFailures.length} {quotaFailures.length === 1 ? 'falha' : 'falhas'})
+            </div>
+            <div style={{ fontSize: 12, color: '#fecaca', marginTop: 2 }}>
+              Clientes não conseguem gerar conteúdo. Recarregue o saldo da OpenAI imediatamente.
+              {lastQuotaFail && ` Última falha: ${new Date(lastQuotaFail.created_at).toLocaleString('pt-BR')}.`}
+            </div>
+          </div>
+          <a href="https://platform.openai.com/account/billing" target="_blank" rel="noopener noreferrer"
+            style={{ background: '#fff', color: '#991b1b', padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+            Recarregar OpenAI →
+          </a>
         </div>
       )}
 
