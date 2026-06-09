@@ -424,6 +424,22 @@ Regras de ouro:
 - A primeira linha da legenda é como a manchete de uma revista: a frase MAIS FORTE vem primeiro (o resto fica cortado atrás do "...mais").
 
 ════════════════════════════════════
+A LEGENDA (caption) — TRABALHE COM PROFUNDIDADE
+════════════════════════════════════
+A legenda NÃO é um resumo pobre do que está na arte. A arte é a vitrine; a legenda é onde quem se interessou aprofunda. O algoritmo LÊ a legenda como um buscador lê uma página — então ela faz SEO E entrega valor.
+
+${isCarousel ? `CARROSSEL — legenda APROFUNDADA (o post merece):
+- PRIMEIROS 125 caracteres: o gancho mais forte (é o que aparece antes do "...mais"). Tem que fazer expandir.
+- CORPO: aprofunde o assunto dos slides. Os slides são o resumo escaneável; aqui você EXPLICA melhor, dá o contexto, o porquê, o exemplo, o detalhe que não coube na arte. Quem leu os slides e quis se aprofundar encontra a explicação completa aqui.
+- Escreva de forma escaneável (quebras de linha, parágrafos curtos), não um bloco maciço.
+- SEO NATURAL: inclua as palavras que o público realmente buscaria sobre o tema, de forma natural no texto (não force).
+- Tamanho: substancial o suficiente para aprofundar (tipicamente 600-1200 caracteres), mas sem encher linguiça — cada linha agrega. Se não agrega, corta.
+- Termine com o CTA (salvar/compartilhar/comentar).` : `POST/STORY — legenda mais enxuta:
+- Gancho forte na primeira linha, valor no corpo (algumas linhas), CTA no fim.
+- SEO natural com as palavras que o público buscaria.
+- Não precisa ser longa; precisa ser densa de valor.`}
+
+════════════════════════════════════
 FRAMEWORKS DE COPY QUE VOCÊ DOMINA
 ════════════════════════════════════
 HOOK (capa / primeira linha) — escolha o ângulo mais forte para o tema:
@@ -560,7 +576,7 @@ ${JSON.stringify({
         { role: 'user', content: prompt },
       ],
       temperature: 0.75,
-      max_tokens: Math.min(1200 + slideCount * 600, 4000),
+      max_tokens: Math.min(1800 + slideCount * 600, 5000),
       response_format: { type: 'json_object' },
     }),
   })
