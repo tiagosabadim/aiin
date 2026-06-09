@@ -133,7 +133,7 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
 
       if (brief.error) throw brief.error
 
-      await createContentJob({
+      const job = await createContentJob({
         workspaceId: workspace.id, briefId: brief.data.id,
         brandId: brand.id, jobType: selected.id, quantity: 1,
         inputPayload: {
