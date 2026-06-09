@@ -176,15 +176,24 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
     let stop = false
     const poll = setInterval(async () => {
       const { data } = await supabase
-        .from('content_jobs').select('draft_content, status')
+        .from('content_jobs').select('draft_content, status, error_message')
         .eq('id', draftJobId).maybeSingle()
-      if (!stop && data && data.draft_content) {
+      if (stop || !data) return
+      if (data.draft_content) {
         clearInterval(poll)
         setDraft(data.draft_content)
         setTextLoading(false)
+      } else if (data.status === 'error') {
+        // O job falhou (ex: coluna draft_content faltando) — mostra o erro em vez de sumir
+        clearInterval(poll)
+        setTextLoading(false)
+        setError(data.error_message ?? 'Não foi possível montar o texto. Tente novamente.')
       }
     }, 2500)
-    const timeout = setTimeout(() => { clearInterval(poll); if (!stop) setTextLoading(false) }, 60000)
+    const timeout = setTimeout(() => {
+      clearInterval(poll)
+      if (!stop) { setTextLoading(false); setError('A geração do texto demorou demais. Tente novamente.') }
+    }, 60000)
     return () => { stop = true; clearInterval(poll); clearTimeout(timeout) }
   }, [draftJobId])
 

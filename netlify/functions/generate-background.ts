@@ -122,9 +122,18 @@ export const handler = async (event: any) => {
 
         // ETAPA TEXTO: se for só texto, salva o rascunho e PARA (sem gerar imagem)
         if (text_only) {
-          await supabase.from('content_jobs')
+          const { error: draftErr } = await supabase.from('content_jobs')
             .update({ status: 'draft', draft_content: content })
             .eq('id', job_id)
+          if (draftErr) {
+            // Falha ao salvar o rascunho (ex: coluna draft_content não existe).
+            // Marca o job como erro para não ficar preso e o frontend saber.
+            console.error('ERRO ao salvar rascunho:', draftErr.message)
+            await supabase.from('content_jobs')
+              .update({ status: 'error', error_message: `Falha ao salvar rascunho: ${draftErr.message}` })
+              .eq('id', job_id)
+            return { statusCode: 500, body: JSON.stringify({ error: draftErr.message }) }
+          }
           console.log('Texto gerado (rascunho). Aguardando revisão do usuário.')
           return { statusCode: 200, body: JSON.stringify({ ok: true, draft: content }) }
         }
