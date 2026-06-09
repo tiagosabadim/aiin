@@ -61,6 +61,8 @@ export const handler = async (event: any) => {
       color_palette, instagram_handle,
       // Campos avulsos
       slide_count, reference_urls,
+      // Revisão de texto antes da imagem (2 etapas)
+      text_only, edited_content,
     } = body
 
     await supabase.from('content_jobs').update({ status: 'processing' }).eq('id', job_id)
@@ -106,12 +108,26 @@ export const handler = async (event: any) => {
     // Processa cada post da quantidade solicitada
     for (let i = 0; i < (quantity ?? 1); i++) {
       try {
-        // 1. GPT-4o gera estrutura completa
-        const content = await generateContent(
-          mergedBrand, job_type, slideCount,
-          title, objective, extraContextFinal, hashtags
-        )
-        await trackUsage({ workspace_id, brand_id, operation: 'content', model: 'gpt-4o', input_tokens: content._usage?.prompt_tokens ?? 0, output_tokens: content._usage?.completion_tokens ?? 0 })
+        // 1. Texto: usa o editado (se veio da revisão) ou gera com GPT-4o
+        let content: any
+        if (edited_content) {
+          content = edited_content   // usuário já revisou; não gera texto de novo
+        } else {
+          content = await generateContent(
+            mergedBrand, job_type, slideCount,
+            title, objective, extraContextFinal, hashtags
+          )
+          await trackUsage({ workspace_id, brand_id, operation: 'content', model: 'gpt-4o', input_tokens: content._usage?.prompt_tokens ?? 0, output_tokens: content._usage?.completion_tokens ?? 0 })
+        }
+
+        // ETAPA TEXTO: se for só texto, salva o rascunho e PARA (sem gerar imagem)
+        if (text_only) {
+          await supabase.from('content_jobs')
+            .update({ status: 'draft', draft_content: content })
+            .eq('id', job_id)
+          console.log('Texto gerado (rascunho). Aguardando revisão do usuário.')
+          return { statusCode: 200, body: JSON.stringify({ ok: true, draft: content }) }
+        }
 
         // 2. Gera todas as imagens EM PARALELO para caber no timeout
         console.log(`Gerando ${content.slides.length} slides em paralelo...`)
