@@ -4,7 +4,7 @@
 // ============================================================
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
-import { approveOutput, rejectOutput, scheduleOutput } from '../lib/api'
+import { approveOutput, rejectOutput, scheduleOutput, generateImagesFromDraft } from '../lib/api'
 import type { CreativeOutput, OutputStatus, CarouselPage } from '../types/database'
 
 interface Props { workspaceId: string; userId: string }
@@ -171,6 +171,7 @@ export function PostsPage({ workspaceId, userId }: Props) {
   const [processing, setProcessing] = useState(0)
   const [filter, setFilter]       = useState<OutputStatus | 'all'>('all')
   const [refreshing, setRefreshing] = useState(false)
+  const [drafts, setDrafts] = useState<any[]>([])
   const doRefresh = async () => {
     setRefreshing(true)
     await Promise.all([fetchOutputs(), fetchProcessing()])
@@ -203,7 +204,35 @@ export function PostsPage({ workspaceId, userId }: Props) {
     setProcessing(data?.length ?? 0)
   }, [workspaceId])
 
-  useEffect(() => { fetchOutputs(); fetchProcessing() }, [fetchOutputs, fetchProcessing])
+  // Rascunhos: jobs com texto pronto aguardando gerar a imagem (usuário saiu da revisão)
+  const fetchDrafts = useCallback(async () => {
+    const { data } = await supabase.from('content_jobs')
+      .select('id, job_type, draft_content, required_credits, brand_id, brief_id, input_payload, created_at')
+      .eq('workspace_id', workspaceId).eq('status', 'draft')
+      .order('created_at', { ascending: false })
+    setDrafts(data ?? [])
+  }, [workspaceId])
+
+  const [generatingDraft, setGeneratingDraft] = useState<string | null>(null)
+  const generateDraftImage = async (d: any) => {
+    setGeneratingDraft(d.id)
+    try {
+      await generateImagesFromDraft({
+        jobId: d.id, workspaceId, briefId: d.brief_id, brandId: d.brand_id,
+        jobType: d.job_type, quantity: 1,
+        editedContent: d.draft_content, inputPayload: d.input_payload ?? {},
+      })
+      // Sai da lista de rascunhos e passa a contar como processando
+      setDrafts(prev => prev.filter(x => x.id !== d.id))
+      fetchProcessing()
+    } catch (e: any) {
+      alert(e.message ?? 'Erro ao gerar imagem')
+    } finally {
+      setGeneratingDraft(null)
+    }
+  }
+
+  useEffect(() => { fetchOutputs(); fetchProcessing(); fetchDrafts() }, [fetchOutputs, fetchProcessing, fetchDrafts])
 
   useEffect(() => {
     const ch = supabase.channel(`outputs:${workspaceId}`)
@@ -391,6 +420,25 @@ export function PostsPage({ workspaceId, userId }: Props) {
           </div>
         ) : (
           <div className="posts-grid">
+          {/* Rascunhos: texto pronto, aguardando você gerar a imagem (não perde o trabalho) */}
+          {drafts.map(d => {
+            const cap = d.draft_content?.caption ?? d.draft_content?.slides?.[0]?.headline ?? 'Rascunho de texto'
+            return (
+              <div key={d.id} className="post-card" style={{ border: '1.5px dashed rgba(123,44,255,.4)', background: 'rgba(123,44,255,.03)' }}>
+                <div style={{ padding: '14px 14px 0' }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 99, background: 'rgba(123,44,255,.12)', color: '#7B2CFF' }}>✍️ TEXTO PRONTO</span>
+                </div>
+                <div style={{ padding: '10px 14px', fontSize: 12.5, color: '#374151', lineHeight: 1.5, minHeight: 60, maxHeight: 120, overflow: 'hidden' }}>
+                  {String(cap).slice(0, 160)}{String(cap).length > 160 ? '…' : ''}
+                </div>
+                <div style={{ padding: '0 14px 14px' }}>
+                  <button className="btn btn-primary btn-md" style={{ width: '100%' }} disabled={generatingDraft === d.id} onClick={() => generateDraftImage(d)}>
+                    {generatingDraft === d.id ? 'Gerando…' : `✦ Gerar imagem · ${d.required_credits} cr.`}
+                  </button>
+                </div>
+              </div>
+            )
+          })}
           {processing > 0 && Array.from({ length: processing }).map((_, i) => <SkeletonCard key={`sk-${i}`} />)}
 
           {filtered.length === 0 && processing === 0 && (
