@@ -233,11 +233,15 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
         setLoading(false)
       }
     }, 3000)
-    // Timeout de segurança: 90s
+    // Timeout: carrossel (5 imagens) pode passar de 2min. Damos 4min.
+    // Se estourar, NÃO joga pro Aprovar — avisa que segue em background e fica disponível lá.
     const timeout = setTimeout(() => {
       clearInterval(poll)
-      if (!stop && !result) { setLoading(false); navigate('posts') }
-    }, 90000)
+      if (!stop && !result) {
+        setLoading(false)
+        setError('A geração está demorando mais que o normal, mas continua rodando. Seu post vai aparecer em Aprovar assim que ficar pronto.')
+      }
+    }, 240000)
     return () => { stop = true; clearInterval(poll); clearTimeout(timeout) }
   }, [genJobId])
 

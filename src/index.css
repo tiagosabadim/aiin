@@ -957,7 +957,7 @@ select.input { cursor: pointer; }
 .create-result-link:hover { color: #fff; }
 
 /* ── Painel: estado de REVISÃO do texto ── */
-.create-tips--review { justify-content: flex-start; padding: 0; overflow: hidden; }
+.create-tips--review { justify-content: flex-start; align-items: stretch; padding: 0; overflow: hidden; height: 100%; }
 .create-review-head {
   width: 100%; padding: 22px 24px 14px; flex-shrink: 0;
   border-bottom: 1px solid rgba(255,255,255,.1);

@@ -165,8 +165,19 @@ export const handler = async (event: any) => {
             }
           } catch (slideErr: any) {
             console.error(`Erro slide ${s+1}:`, slideErr.message)
+            content.slides[s]._error = slideErr.message?.slice(0, 300)
           }
         }))
+
+        // Se NENHUM slide gerou imagem, marca o job como erro (não cria output fantasma com placeholder)
+        const anyImage = content.slides.some((sl: any) => sl.public_url)
+        if (!anyImage) {
+          const firstErr = content.slides.find((sl: any) => sl._error)?._error ?? 'Falha ao gerar imagem'
+          await supabase.from('content_jobs')
+            .update({ status: 'error', error_message: `Imagem: ${firstErr}` })
+            .eq('id', job_id)
+          return { statusCode: 500, body: JSON.stringify({ error: firstErr }) }
+        }
 
         // 3. Salva creative_output
         const firstSlide = content.slides[0]
