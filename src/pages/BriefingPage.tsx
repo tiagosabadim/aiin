@@ -80,6 +80,8 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
   const [cta, setCta]                 = useState('')
   const [videoTitle, setVideoTitle]   = useState('')
   const [hashtags, setHashtags]       = useState('')
+  const [hAlign, setHAlign] = useState<'left'|'center'|'right'>(brand.text_alignment?.horizontal ?? 'center')
+  const [vAlign, setVAlign] = useState<'top'|'middle'|'bottom'>(brand.text_alignment?.vertical ?? 'middle')
   const [scheduleDate, setScheduleDate] = useState('')
   const [scheduleTime, setScheduleTime] = useState('18:00')
   const [refs, setRefs]               = useState<File[]>([])
@@ -148,6 +150,7 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
           brand_dna: brand.ai_brand_dna, logo_urls: brand.logo_urls,
           quantity: 1, content_type: selected.id,
           scheduled_date: scheduleDate || undefined,
+          text_alignment: { horizontal: hAlign, vertical: vAlign },
         },
       })
 
@@ -362,6 +365,39 @@ export function BriefingPage({ workspace, brand, subscription, credits, navigate
                   <div className="input-hint">Fotos que ajudam a IA a entender o estilo visual desejado</div>
                 </F>
               )}
+
+              {/* Alinhamento do texto (default do Brand DNA, ajustável aqui) */}
+              <F label="Alinhamento do texto">
+                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                  <div>
+                    <div style={{ fontSize: 10, color: '#9CA3AF', marginBottom: 5 }}>Horizontal</div>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      {([['left','⬅'],['center','⬌'],['right','➡']] as const).map(([v, ic]) => (
+                        <button key={v} type="button" onClick={() => setHAlign(v)} style={{
+                          width: 38, height: 34, borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14,
+                          border: `1.5px solid ${hAlign === v ? '#7B2CFF' : 'rgba(7,13,31,.12)'}`,
+                          background: hAlign === v ? 'rgba(123,44,255,.08)' : '#fff',
+                          color: hAlign === v ? '#7B2CFF' : '#9CA3AF',
+                        }}>{ic}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, color: '#9CA3AF', marginBottom: 5 }}>Vertical</div>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      {([['top','⬆'],['middle','⬍'],['bottom','⬇']] as const).map(([v, ic]) => (
+                        <button key={v} type="button" onClick={() => setVAlign(v)} style={{
+                          width: 38, height: 34, borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14,
+                          border: `1.5px solid ${vAlign === v ? '#7B2CFF' : 'rgba(7,13,31,.12)'}`,
+                          background: vAlign === v ? 'rgba(123,44,255,.08)' : '#fff',
+                          color: vAlign === v ? '#7B2CFF' : '#9CA3AF',
+                        }}>{ic}</button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ fontSize: 10.5, color: '#9CA3AF', marginTop: 8 }}>Vem do seu Brand DNA. Ajuste aqui só para este conteúdo.</div>
+              </F>
 
               {/* Agendar */}
               {selected.fields.includes('date') && (

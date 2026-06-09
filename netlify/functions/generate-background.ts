@@ -57,7 +57,7 @@ export const handler = async (event: any) => {
       extra_context, hashtags,
       // Dados completos do briefing/onboarding
       title, objective, tone_of_voice, target_audience,
-      products, design_rules, forbidden_words, slogans,
+      products, design_rules, forbidden_words, slogans, text_alignment,
       color_palette, instagram_handle,
       // Campos avulsos
       slide_count, reference_urls,
@@ -85,6 +85,7 @@ export const handler = async (event: any) => {
       forbidden_words: forbidden_words || brand.forbidden_words,
       color_palette: color_palette || brand.color_palette,
       slogans: slogans || brand.slogans,
+      text_alignment: text_alignment || brand.text_alignment,
     }
 
     const slideCount = slide_count
@@ -297,6 +298,14 @@ async function generateImageWithBrandContext(
   const activeSlogans = brand.slogans?.filter((s: any) => s.active).map((s: any) => s.text).join(', ') ?? ''
   const size = getImageSize(jobType)
 
+  // Alinhamento de texto (default do Brand DNA, traduzido para instrução clara)
+  const hMap: any = { left: 'à esquerda (left-aligned)', center: 'centralizado (center-aligned)', right: 'à direita (right-aligned)' }
+  const vMap: any = { top: 'na parte superior (top)', middle: 'no centro vertical (middle)', bottom: 'na parte inferior/rodapé (bottom)' }
+  const ta = brand.text_alignment ?? {}
+  const hAlign = hMap[ta.horizontal ?? 'center']
+  const vAlign = vMap[ta.vertical ?? 'middle']
+  const alignInstruction = `\nALINHAMENTO DO TEXTO (importante): posicione os textos ${hAlign}, ${vAlign} da imagem. Respeite esse alinhamento de forma consistente.`
+
   const prompt = `Crie uma imagem para Instagram que PARA O SCROLL — criativa, com hierarquia visual forte, fiel à identidade da marca, e NUNCA com cara de template de IA genérico.
 
 DESCRIÇÃO VISUAL (direção de arte):
@@ -306,6 +315,7 @@ TEXTO NA IMAGEM (em português) — com hierarquia clara:
 ${slide.headline ? `• Título principal (DOMINANTE, grande, legível na miniatura): "${slide.headline}"` : ''}
 ${slide.body ? `• Texto secundário (menor, de apoio): "${slide.body}"` : ''}
 ${slide.cta ? `• Call-to-action (destacado): "${slide.cta}"` : ''}
+${alignInstruction}
 
 IDENTIDADE DA MARCA (obrigatória — o ESTILO vem daqui):
 • Cores da marca como PROTAGONISTAS: ${brandColors}

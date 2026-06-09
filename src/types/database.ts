@@ -101,6 +101,7 @@ export interface BrandProfile {
   visual_references: string[]
   forbidden_words: string[]
   design_rules: string | null
+  text_alignment?: { horizontal?: 'left' | 'center' | 'right'; vertical?: 'top' | 'middle' | 'bottom' } | null
   ai_brand_dna: string | null
   ai_context_pct: number
   instagram_handle: string | null
