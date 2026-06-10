@@ -114,6 +114,14 @@ export const handler = async (event: any) => {
         let content: any
         if (edited_content) {
           content = edited_content   // usuário já revisou; não gera texto de novo
+          console.log(`[edited] slides=${content?.slides?.length} keys=${Object.keys(content || {}).join(',')}`)
+          // Blindagem: se o conteúdo editado não tem slides válidos, erro claro
+          if (!content || !Array.isArray(content.slides) || content.slides.length === 0) {
+            await supabase.from('content_jobs')
+              .update({ status: 'error', error_message: 'Conteúdo revisado sem slides válidos.' })
+              .eq('id', job_id)
+            return { statusCode: 400, body: JSON.stringify({ error: 'edited_content sem slides' }) }
+          }
         } else {
           content = await generateContent(
             mergedBrand, job_type, slideCount,
